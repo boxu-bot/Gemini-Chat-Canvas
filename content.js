@@ -5,6 +5,7 @@
 // 暂存架状态管理
 let savedSnippets = [];
 let activeDiscussionItem = null;
+let isWaitingForDiscussionReply = false;
 
 // 1. 健壮查找 Gemini 原生输入框
 function findGeminiInput() {
@@ -69,42 +70,45 @@ function setGeminiInputText(text) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   } else {
-    // 适配 contenteditable 富文本编辑器
-    input.innerHTML = '';
-    const p = document.createElement('p');
-    p.textContent = text;
-    input.appendChild(p);
+    // 选定并清空 contenteditable 的已有文字，然后使用 insertText 模拟打字输入，强力启用发送键
+    try {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(input);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand('delete', false);
+      
+      // 使用 insertText 强力写入
+      document.execCommand('insertText', false, text);
+    } catch (e) {
+      // 兜底直接修改
+      input.innerHTML = '';
+      const p = document.createElement('p');
+      p.textContent = text;
+      input.appendChild(p);
+    }
     
-    // 派发 input 事件激活前端框架监听
+    // 派发事件激活前端框架监听
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    
-    // 派发 Composition 事件强化反应性
-    input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-    input.dispatchEvent(new CompositionEvent('compositionend', { data: text, bubbles: true }));
   }
-  
-  // 派发键盘事件辅助激活
-  const keyEvent = new KeyboardEvent('keydown', {
-    bubbles: true,
-    cancelable: true,
-    key: ' ',
-    char: ' ',
-    shiftKey: false
-  });
-  input.dispatchEvent(keyEvent);
   
   input.focus();
   return true;
 }
 
-// 4. 模拟点击发送按钮
+// 4. 模拟点击发送按钮（采用硬件鼠标事件序列强力激活）
 function clickGeminiSend() {
   const btn = findGeminiSendButton();
   if (!btn) {
     showToast("❌ 未找到发送按钮，请手动点击发送！");
     return false;
   }
+  
+  // 触发完整的硬件级鼠标点击事件流，强力突破 SPA 内部拦截，确保能实现全自动提问发送
+  btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+  btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
   btn.click();
   return true;
 }
@@ -165,6 +169,17 @@ function initSidebar() {
     <div class="gcc-thread">
       <div class="gcc-thread-header">💬 局部讨论区</div>
       <div class="gcc-thread-context" id="gcc-thread-context">请选择步骤发起讨论...</div>
+      
+      <!-- 局部讨论历史看板：将 AI 生成的最新内容直接同步在此显示，真正摆脱屏幕刷屏被淹没的痛点 -->
+      <div class="gcc-thread-log" id="gcc-thread-log" style="display: none;">
+        <div class="gcc-chat-bubble user">
+          <strong>问：</strong><span id="gcc-log-question"></span>
+        </div>
+        <div class="gcc-chat-bubble ai">
+          <strong>答：</strong><span id="gcc-log-answer">正在等待 AI 输入...</span>
+        </div>
+      </div>
+      
       <div class="gcc-input-container">
         <textarea class="gcc-input" id="gcc-thread-input" placeholder="输入你想追问或调整的意见，回车快速发送..." disabled></textarea>
         <button class="gcc-input-btn" id="gcc-thread-send-btn" disabled>发送给 AI</button>
@@ -190,16 +205,25 @@ function initSidebar() {
     const prompt = `针对你刚才提到的‘${activeDiscussionItem}’，我有以下疑问：${text}`;
     if (setGeminiInputText(prompt)) {
       threadInput.value = '';
+      
+      // 显示讨论日志面板，并渲染用户当前输入
+      const logEl = document.getElementById('gcc-thread-log');
+      const questionEl = document.getElementById('gcc-log-question');
+      const answerEl = document.getElementById('gcc-log-answer');
+      
+      if (logEl && questionEl && answerEl) {
+        questionEl.textContent = text;
+        answerEl.textContent = "🤖 正在等候 AI 响应并在此处同步...";
+        logEl.style.display = 'flex';
+      }
+      
+      isWaitingForDiscussionReply = true; // 开启同步信号
+      
       showToast("🚀 讨论指令已载入并自动发送！");
       clickGeminiSend();
       
-      // 发送后，平滑滚动视口到底部以便观察最新回复
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 350);
+      // 注：为了解决用户“AI 回答被刷屏淹没”的绝对痛点，我们彻底拿掉 window.scrollTo()。
+      // 保持原视口稳定在列表条目处，新生成的回复将以实时的形式被克隆展示在侧边栏日志中！
     }
   };
   
@@ -437,7 +461,35 @@ function optimizeAggregated() {
   }
 }
 
-// 8. 实时扫描并注入 Hover 按钮挂件
+// 8. 实时同步 AI 回复文字到侧边栏局部讨论区 (双保险同步器)
+function trackDynamicReply() {
+  if (!isWaitingForDiscussionReply) return;
+  
+  // 寻找到页面中最后一个回复内容容器
+  const replies = document.querySelectorAll('message-content, .message-content, div[class*="message-content"], div[class*="reply"]');
+  if (replies.length === 0) return;
+  
+  const latestReply = replies[replies.length - 1];
+  
+  if (latestReply) {
+    let rawText = latestReply.textContent.trim();
+    // 过滤自身按钮残留文本
+    rawText = rawText.replace(/📌 留存步骤\s*💬 讨论步骤\s*❌ 隐藏步骤/g, '').trim();
+    
+    const answerEl = document.getElementById('gcc-log-answer');
+    if (answerEl && rawText) {
+      answerEl.innerHTML = rawText.replace(/\n/g, '<br>');
+      
+      // 自动滚下日志区以保持显示最新的一句回答
+      const logEl = document.getElementById('gcc-thread-log');
+      if (logEl) {
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    }
+  }
+}
+
+// 9. 实时扫描并注入 Hover 按钮挂件
 function scanAndInject() {
   // 极度强健的匹配规则：抓取页面上所有的 ol li 和 ul li 元素
   const listItems = document.querySelectorAll('ol li, ul li');
@@ -456,7 +508,7 @@ function scanAndInject() {
   });
 }
 
-// 9. 开启 DOM 实时 MutationObserver 监测与周期扫描双保险
+// 10. 开启 DOM 实时 MutationObserver 监测与周期扫描双保险
 function startObserver() {
   // 初始化侧边栏和 Toast 节点
   initSidebar();
@@ -474,6 +526,8 @@ function startObserver() {
     if (shouldScan) {
       scanAndInject();
     }
+    // 实时同步渲染讨论问答
+    trackDynamicReply();
   });
   
   observer.observe(document.body, {
@@ -483,7 +537,10 @@ function startObserver() {
   });
   
   // 双保险机制 2：周期性定时器自动兜底扫描（应对 SPA 路由无刷跳转及各种极端渲染延迟）
-  setInterval(scanAndInject, 1000);
+  setInterval(() => {
+    scanAndInject();
+    trackDynamicReply();
+  }, 1000);
 }
 
 // 安全启动
