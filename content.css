@@ -1,0 +1,531 @@
+/* ==========================================================================
+   Gemini 对话画布 (Gemini Chat Canvas) - 核心样式表
+   ========================================================================== */
+
+/* 主页布局整体平滑推送，防止侧边栏遮挡对话内容 */
+body {
+  transition: padding-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+body.gcc-sidebar-active {
+  padding-right: 380px !important;
+}
+
+/* 适配底部固定栏、提示框和输入框容器，使其平滑左移，完全避免遮挡 */
+body.gcc-sidebar-active div[class*="bottom-container"],
+body.gcc-sidebar-active div[class*="input-area"],
+body.gcc-sidebar-active div[class*="prompt-box"],
+body.gcc-sidebar-active .chat-input-container,
+body.gcc-sidebar-active g-textarea {
+  margin-right: 380px !important;
+  transition: margin-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 侧边栏主体 */
+#gcc-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 380px;
+  height: 100vh;
+  z-index: 99999;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+#gcc-sidebar.collapsed {
+  transform: translate3d(380px, 0, 0);
+}
+
+/* 暗色模式适配 */
+@media (prefers-color-scheme: dark) {
+  #gcc-sidebar {
+    background: rgba(20, 25, 40, 0.75);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+    box-shadow: -10px 0 35px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* 浮动折叠把手 */
+#gcc-toggle-btn {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 48px;
+  background: rgba(26, 115, 232, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  cursor: pointer;
+  z-index: 99998;
+  box-shadow: -4px 0 16px rgba(26, 115, 232, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#gcc-toggle-btn:hover {
+  width: 52px;
+  background: #1a73e8;
+  box-shadow: -6px 0 20px rgba(26, 115, 232, 0.4);
+}
+
+/* 顶部工具栏 */
+.gcc-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}
+
+.gcc-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gcc-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+}
+
+.gcc-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: inherit;
+  opacity: 0.5;
+  transition: opacity 0.2s, transform 0.2s;
+  padding: 4px;
+  line-height: 1;
+}
+.gcc-close-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.1);
+}
+
+.gcc-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.gcc-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.gcc-btn-primary {
+  background: #1a73e8;
+  color: white;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.2);
+}
+.gcc-btn-primary:hover {
+  background: #1557b0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3);
+}
+
+.gcc-btn-secondary {
+  background: rgba(0, 0, 0, 0.05);
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+.gcc-btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .gcc-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* 上半区：黄金资产暂存架 */
+.gcc-shelf {
+  flex: 3;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-shelf {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* 自定义优美滚动条 */
+.gcc-shelf::-webkit-scrollbar {
+  width: 6px;
+}
+.gcc-shelf::-webkit-scrollbar-track {
+  background: transparent;
+}
+.gcc-shelf::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-shelf::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+.gcc-shelf-empty {
+  text-align: center;
+  color: inherit;
+  opacity: 0.45;
+  font-size: 12px;
+  margin-top: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.6;
+}
+
+.gcc-shelf-empty span {
+  font-size: 24px;
+}
+
+.gcc-card {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 12px 14px;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: gccCardIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.gcc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.04);
+  border-color: rgba(26, 115, 232, 0.3);
+}
+
+@keyframes gccCardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gcc-card-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gcc-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.gcc-card-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: inherit;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.gcc-card-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-card-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.gcc-card-back {
+  color: #1a73e8;
+  font-weight: 500;
+}
+.gcc-card-del {
+  color: #ea4335;
+}
+
+/* 下半区：局部微线程 */
+.gcc-thread {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.25);
+  box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-thread {
+    background: rgba(0, 0, 0, 0.12);
+  }
+}
+
+.gcc-thread-header {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gcc-thread-context {
+  font-size: 11px;
+  opacity: 0.65;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 8px 10px;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 2px solid #1a73e8;
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-thread-context {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.gcc-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.gcc-input {
+  width: 100%;
+  flex-grow: 1;
+  min-height: 56px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  color: inherit;
+}
+.gcc-input:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-input {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+.gcc-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gcc-input-btn {
+  align-self: flex-end;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.gcc-input-btn:hover:not(:disabled) {
+  background: #1557b0;
+  transform: translateY(-1px);
+}
+.gcc-input-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Gemini 原生列表 Hover 微型交互按钮 */
+.gcc-hover-widget {
+  position: absolute;
+  right: 12px;
+  top: 4px;
+  display: inline-flex;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  padding: 3px;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translate3d(0, 4px, 0);
+}
+@media (prefers-color-scheme: dark) {
+  .gcc-hover-widget {
+    background: rgba(30, 35, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* 给 Gemini 列表项设置相对定位 */
+li.gcc-li-relative {
+  position: relative !important;
+}
+
+li.gcc-li-relative:hover .gcc-hover-widget {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+
+.gcc-widget-btn {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  padding: 4px 8px !important;
+  border-radius: 5px !important;
+  cursor: pointer;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #1e293b !important;
+  font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  opacity: 0.95;
+}
+
+.gcc-widget-btn:hover {
+  opacity: 1;
+  background: #f1f5f9 !important;
+  border-color: rgba(26, 115, 232, 0.3) !important;
+  color: #1a73e8 !important;
+  transform: translateY(-0.5px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  .gcc-widget-btn {
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: rgba(30, 41, 59, 0.9) !important;
+    color: #f1f5f9 !important;
+  }
+  .gcc-widget-btn:hover {
+    background: rgba(51, 65, 85, 0.9) !important;
+    border-color: rgba(26, 115, 232, 0.5) !important;
+    color: #3b82f6 !important;
+  }
+}
+
+/* 平滑隐藏列表项的动画 */
+.gcc-li-hiding {
+  transform: scale(0.95) !important;
+  opacity: 0 !important;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 全局 Toast 通知 */
+.gcc-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translate3d(-50%, 40px, 0);
+  opacity: 0;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  z-index: 100000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.gcc-toast.show {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
+}

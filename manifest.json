@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini 对话画布 (Gemini Chat Canvas)",
+  "version": "1.0.0",
+  "description": "解决长对话中“信息被淹没”的痛点，帮助高效捕获、讨论、隐藏与聚合 Gemini 列表式步骤资产。",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_end"
+    }
+  ]
+}
