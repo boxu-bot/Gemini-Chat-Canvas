@@ -13,6 +13,16 @@
         "https://gemini.google.com/*"
       ],
       "js": [
+        "inject.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
         "content.js"
       ],
       "css": [
