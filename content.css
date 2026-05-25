@@ -534,7 +534,7 @@ body.gcc-sidebar-active .chat-input-container {
   flex-shrink: 0;
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* Align the "+" button to the bottom when textarea grows */
   gap: 8px;
 }
 
@@ -552,6 +552,7 @@ body.gcc-sidebar-active .chat-input-container {
   transition: all 0.2s ease;
   flex-shrink: 0;
   padding: 0;
+  margin-bottom: 8px; /* Offset the padding-bottom of the wrapper so it aligns horizontally with the send button */
 }
 
 .gcc-input-action-btn:hover {
@@ -570,7 +571,7 @@ body.gcc-sidebar-active .chat-input-container {
   border-radius: 24px;
   padding: 8px 14px;
   display: flex;
-  align-items: center; /* 垂直居中对齐，解决单行 Placeholder 偏下痛点 */
+  align-items: flex-end; /* Anchor the send button and text to the bottom as the capsule grows */
   border: 1px solid #303135;
   z-index: 1;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -604,19 +605,19 @@ body.gcc-sidebar-active .chat-input-container {
 .gcc-input {
   width: 100%;
   flex: 1;
-  height: 24px;
-  min-height: 24px;
-  max-height: 120px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 140px; /* Fully synchronized with JavaScript's maxHeight */
   background: transparent;
   border: none;
   resize: none;
   box-sizing: border-box;
   font-family: inherit;
   font-size: 13px;
-  line-height: 24px; /* 行高与高度完全匹配，实现文本完美垂直居中 */
+  line-height: 20px; /* 20px line-height + 6px * 2 padding = 32px total height */
   color: #e3e3e3;
   outline: none;
-  padding: 0 4px; /* 移除顶部与底部 padding，杜绝浏览器像素级垂偏 */
+  padding: 6px 4px; /* Perfectly centers placeholder vertically without subpixel shifts */
   margin: 0;
 }
 

@@ -242,25 +242,40 @@ function unlockViewportScroll() {
   console.log("[Gemini Chat Canvas] Scroll unlocked.");
 }
 
-// 5.8 视口滚动弹性物理弹簧机制 (Springy Rubber-Band Scroll Simulation)
+// 5.8 视口滚动弹性物理弹簧机制 (Springy Rubber-Band Scroll Simulation with Hyperbolic Tangent)
 function applySpringyScroll(element) {
   if (!element) return;
   
+  let rawDisplacement = 0;
   let displacement = 0;
   let timer = null;
+  let resetTimeout = null; // 用于精确取消的清理定时器
   
-  // 基础阻尼系数
+  // 阻尼系数
   const resistance = 0.15; 
-  // 最大拉拽上限
+  // 最大拉拽安全边界值
   const maxBounce = 45; 
   
   const resetSpring = () => {
     if (displacement === 0) return;
     
-    // 使用高精度的 CSS 弹性阻尼回弹曲线 (Cubic Bezier Spring)
+    // 如果有未完成的清理定时器，立即清除，避免冲突
+    if (resetTimeout) {
+      clearTimeout(resetTimeout);
+    }
+    
+    // 使用高精度的 CSS 物理阻力弹簧回弹曲线
     element.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.28)';
     element.style.transform = 'translateY(0)';
+    rawDisplacement = 0;
     displacement = 0;
+    
+    // 动画结束后彻底清除 transition 和 transform，还原原生 Stacking Context，恢复极致顺滑点击与切换！
+    resetTimeout = setTimeout(() => {
+      element.style.transition = '';
+      element.style.transform = '';
+      resetTimeout = null;
+    }, 400);
   };
   
   element.addEventListener('wheel', (e) => {
@@ -270,44 +285,67 @@ function applySpringyScroll(element) {
     const isAtTop = scrollTop === 0;
     const isAtBottom = Math.ceil(scrollTop + clientHeight) >= scrollHeight;
     
-    // 只有在顶端向上拉，或底端向下拉时才触发弹簧
+    // 当在顶端继续向上滑，或在底端继续向下滑时，触发物理弹簧拉拽
     if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
       e.preventDefault();
       
-      // 1. 可中断性支持：读取当前的实时视觉 translateY 矩阵，实现零闪烁、无缝的中断重力拉拽
+      // 1. 如果正在执行回弹过渡，立即清除正在运行的清理定时器，实现无缝的中断重力拉拽
+      if (resetTimeout) {
+        clearTimeout(resetTimeout);
+        resetTimeout = null;
+      }
+      
+      // 2. 可中断性支持：读取当前的实时视觉 translateY 矩阵
       const computedStyle = window.getComputedStyle(element);
       const matrix = computedStyle.transform || computedStyle.webkitTransform;
       if (matrix && matrix !== 'none') {
         const values = matrix.split('(')[1].split(')')[0].split(',');
         const currentY = parseFloat(values[5]);
         if (!isNaN(currentY) && Math.abs(currentY - displacement) > 0.5) {
-          displacement = currentY; // 捕获飞跃中的实时视觉位置
+          displacement = currentY;
+          // 反向还原出原始线性拉拽值，加入严格的安全边界夹持以彻底防范 NaN 与 Infinity 引起的卡顿突跳！
+          const ratio = Math.max(-0.99, Math.min(0.99, displacement / maxBounce));
+          rawDisplacement = maxBounce * Math.atanh(ratio);
+          if (isNaN(rawDisplacement)) rawDisplacement = displacement;
         }
       }
       
-      // 2. 擦除正在运行的 Transition 动画，防止浏览器发生缓动帧率死锁
+      // 3. 擦除正在运行的 Transition 动画，防止浏览器发生缓动帧率死锁
       element.style.transition = 'none';
       
-      // 3. 非线性阻尼插值 (Asymptotic Damping)：拉得越深，阻力呈对数极速攀升，杜绝硬触墙卡顿感
-      const delta = -e.deltaY * resistance;
-      if (delta > 0) {
-        displacement += delta * (1 - Math.max(0, displacement) / maxBounce);
-      } else {
-        displacement += delta * (1 - Math.max(0, -displacement) / maxBounce);
-      }
-      
-      // 4. 边界极值安全限制
-      if (displacement > maxBounce) displacement = maxBounce;
-      if (displacement < -maxBounce) displacement = -maxBounce;
+      // 4. 完美的双曲正切非线性弹性物理模型 (Hyperbolic Tangent Spring Physics)
+      // 彻底杜绝硬夹持卡顿，呈现极度温和顺滑的拉伸体验
+      rawDisplacement -= e.deltaY * resistance;
+      displacement = maxBounce * Math.tanh(rawDisplacement / maxBounce);
       
       element.style.transform = `translateY(${displacement}px)`;
       element.style.transformOrigin = 'center';
       
-      // 5. 延长防抖周期至 120ms，保证多帧物理滚轮连发时回弹逻辑不被提前切断
+      // 5. 重启 80ms 高连发防抖，极大缩短回弹前的静止等待卡顿时间，让弹性手感瞬发！
       clearTimeout(timer);
-      timer = setTimeout(resetSpring, 120);
+      timer = setTimeout(resetSpring, 80);
     }
   }, { passive: false });
+}
+
+// 5.9 输入框自适应高度伸缩引擎 (Textarea Auto-Grow Engine)
+function adjustTextareaHeight(textarea) {
+  if (!textarea) return;
+  
+  // 1. 临时重设为初始单行高度，防范删除文字时 scrollHeight 发生卡滞滞留
+  textarea.style.height = '32px';
+  
+  const scrollHeight = textarea.scrollHeight;
+  const maxHeight = 140; // 最大拉伸高度上限，约折合 6 行多
+  
+  if (scrollHeight > maxHeight) {
+    textarea.style.height = `${maxHeight}px`;
+    textarea.style.overflowY = 'auto'; // 达到最大高度后开启滚动条
+  } else {
+    // 动态撑开高度，使 capsule 圆角外壳同步发生高颜值顺滑胀大形变
+    textarea.style.height = `${scrollHeight}px`;
+    textarea.style.overflowY = 'hidden'; // 高度未达上限时隐蔽滚动条，保持极致清爽
+  }
 }
 
 // 6. 初始化侧边栏 DOM 及注册事件
@@ -446,10 +484,13 @@ function initSidebar() {
   const threadInput = document.getElementById('gcc-thread-input');
   const threadSendBtn = document.getElementById('gcc-thread-send-btn');
   
-  // 动态更新发送按钮启用状态
+  // 动态更新发送按钮启用状态与滚动条可见性
   const updateSendBtnState = () => {
     const hasText = threadInput.value.trim().length > 0;
     threadSendBtn.disabled = !hasText || !activeDiscussionItem;
+    
+    // 自适应调控输入框的拉伸高度与滚动条开启状态
+    adjustTextareaHeight(threadInput);
   };
   threadInput.addEventListener('input', updateSendBtnState);
   
@@ -459,12 +500,13 @@ function initSidebar() {
     if (!text || !activeDiscussionItem) return;
     
     // 采用极度严密的 XML 标签 and 三引号隔离提示词，防止 Gemini 对短句/疑问句产生“聚合优化”误判
-    const prompt = `【局部讨论上下文（仅作为参考背景，不要对其进行全文重组或聚合文档生成）】\n"""\n${activeDiscussionItem}\n"""\n\n【用户对上述上下文的疑问/微调指令】\n"${text}"\n\n【回答要求】\n请严格只针对用户的具体问题进行直接、精准、简明扼要的回答，切勿进行任何无意义的信息聚合、格式重排、长文润色或多余 of 去重整理！`;
+    const prompt = `【局部讨论上下文（仅作为参考背景，不要对其进行全文重组或聚合文档生成）】\n"""\n${activeDiscussionItem}\n"""\n\n【用户对上述上下文的疑问/微调指令】\n"${text}"\n\n【回答要求】\n请严格只针对用户的具体问题进行直接、精准、简明扼要 of 回答，切勿进行任何无意义的信息聚合、格式重排、长文润色或多余 of 去重整理！`;
     
     if (setGeminiInputText(prompt)) {
       threadInput.value = '';
+      adjustTextareaHeight(threadInput); // 发送后重置高度为单行
       threadInput.disabled = true; // 正在生成回复时禁用输入框，防范二次重发
-      threadInput.placeholder = "AI 正在回答中，请稍候...";
+      threadInput.placeholder = "AI 正在回答中...";
       threadSendBtn.disabled = true; // 发送后重置为禁用状态
       
       const logEl = document.getElementById('gcc-thread-log');
@@ -677,9 +719,10 @@ function startDiscussion(content, li) {
   lastCapturedText = "";
   
   threadInput.value = '';
+  adjustTextareaHeight(threadInput); // 初始化输入框为单行自适应高度
   threadInput.disabled = false;
   threadSendBtn.disabled = true; // 初始为空，置灰禁用
-  threadInput.placeholder = "输入您的问题，Enter/发送按钮提交给 AI...";
+  threadInput.placeholder = "输入您的问题...";
   threadInput.focus();
   
   // 初始化清理历史记录，呈现空讨论看板
@@ -912,7 +955,7 @@ function trackDynamicReply() {
       const threadSendBtn = document.getElementById('gcc-thread-send-btn');
       if (threadInput) {
         threadInput.disabled = false;
-        threadInput.placeholder = "输入微调或追问，Enter发送...";
+        threadInput.placeholder = "输入您的问题...";
         threadInput.focus();
       }
       if (threadSendBtn) {
