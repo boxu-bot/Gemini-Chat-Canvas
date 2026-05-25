@@ -242,6 +242,63 @@ function unlockViewportScroll() {
   console.log("[Gemini Chat Canvas] Scroll unlocked.");
 }
 
+// 5.8 视口滚动弹性物理弹簧机制 (Springy Rubber-Band Scroll Simulation)
+function applySpringyScroll(element) {
+  if (!element) return;
+  
+  let displacement = 0;
+  let isTransitioning = false;
+  let timer = null;
+  
+  // 阻尼系数：越大表示弹簧拉伸阻力越强
+  const resistance = 0.12; 
+  // 最大拉拽安全边界值
+  const maxBounce = 36; 
+  
+  const resetSpring = () => {
+    if (displacement === 0) return;
+    isTransitioning = true;
+    
+    // 使用高精度的 CSS 物理阻力弹簧回弹曲线 (Cubic Bezier Spring)
+    element.style.transition = 'transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.28)';
+    element.style.transform = 'translateY(0)';
+    displacement = 0;
+    
+    setTimeout(() => {
+      element.style.transition = '';
+      isTransitioning = false;
+    }, 450);
+  };
+  
+  element.addEventListener('wheel', (e) => {
+    if (isTransitioning) return;
+    
+    const scrollTop = element.scrollTop;
+    const scrollHeight = element.scrollHeight;
+    const clientHeight = element.clientHeight;
+    const isAtTop = scrollTop === 0;
+    const isAtBottom = Math.ceil(scrollTop + clientHeight) >= scrollHeight;
+    
+    // 当在顶端继续向上滑，或在底端继续向下滑时，触发物理弹簧拉拽
+    if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+      e.preventDefault();
+      
+      displacement -= e.deltaY * resistance;
+      
+      // 物理形变临界钳制
+      if (displacement > maxBounce) displacement = maxBounce;
+      if (displacement < -maxBounce) displacement = -maxBounce;
+      
+      element.style.transform = `translateY(${displacement}px)`;
+      element.style.transformOrigin = 'center';
+      
+      // 重启防抖，当手势滚动停止时瞬间触发高弹性回弹
+      clearTimeout(timer);
+      timer = setTimeout(resetSpring, 60);
+    }
+  }, { passive: false });
+}
+
 // 6. 初始化侧边栏 DOM 及注册事件
 function initSidebar() {
   if (document.getElementById('gcc-sidebar')) return;
@@ -455,6 +512,12 @@ function initSidebar() {
       sendDiscussion();
     }
   });
+  
+  // 绑定滚动弹性物理弹簧机制
+  const shelf = document.getElementById('gcc-shelf');
+  const logEl = document.getElementById('gcc-thread-log');
+  applySpringyScroll(shelf);
+  applySpringyScroll(logEl);
 }
 
 // 侧边栏开启/关闭/折叠切换
