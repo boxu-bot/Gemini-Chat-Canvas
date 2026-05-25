@@ -247,54 +247,65 @@ function applySpringyScroll(element) {
   if (!element) return;
   
   let displacement = 0;
-  let isTransitioning = false;
   let timer = null;
   
-  // 阻尼系数：越大表示弹簧拉伸阻力越强
-  const resistance = 0.12; 
-  // 最大拉拽安全边界值
-  const maxBounce = 36; 
+  // 基础阻尼系数
+  const resistance = 0.15; 
+  // 最大拉拽上限
+  const maxBounce = 45; 
   
   const resetSpring = () => {
     if (displacement === 0) return;
-    isTransitioning = true;
     
-    // 使用高精度的 CSS 物理阻力弹簧回弹曲线 (Cubic Bezier Spring)
-    element.style.transition = 'transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.28)';
+    // 使用高精度的 CSS 弹性阻尼回弹曲线 (Cubic Bezier Spring)
+    element.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.28)';
     element.style.transform = 'translateY(0)';
     displacement = 0;
-    
-    setTimeout(() => {
-      element.style.transition = '';
-      isTransitioning = false;
-    }, 450);
   };
   
   element.addEventListener('wheel', (e) => {
-    if (isTransitioning) return;
-    
     const scrollTop = element.scrollTop;
     const scrollHeight = element.scrollHeight;
     const clientHeight = element.clientHeight;
     const isAtTop = scrollTop === 0;
     const isAtBottom = Math.ceil(scrollTop + clientHeight) >= scrollHeight;
     
-    // 当在顶端继续向上滑，或在底端继续向下滑时，触发物理弹簧拉拽
+    // 只有在顶端向上拉，或底端向下拉时才触发弹簧
     if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
       e.preventDefault();
       
-      displacement -= e.deltaY * resistance;
+      // 1. 可中断性支持：读取当前的实时视觉 translateY 矩阵，实现零闪烁、无缝的中断重力拉拽
+      const computedStyle = window.getComputedStyle(element);
+      const matrix = computedStyle.transform || computedStyle.webkitTransform;
+      if (matrix && matrix !== 'none') {
+        const values = matrix.split('(')[1].split(')')[0].split(',');
+        const currentY = parseFloat(values[5]);
+        if (!isNaN(currentY) && Math.abs(currentY - displacement) > 0.5) {
+          displacement = currentY; // 捕获飞跃中的实时视觉位置
+        }
+      }
       
-      // 物理形变临界钳制
+      // 2. 擦除正在运行的 Transition 动画，防止浏览器发生缓动帧率死锁
+      element.style.transition = 'none';
+      
+      // 3. 非线性阻尼插值 (Asymptotic Damping)：拉得越深，阻力呈对数极速攀升，杜绝硬触墙卡顿感
+      const delta = -e.deltaY * resistance;
+      if (delta > 0) {
+        displacement += delta * (1 - Math.max(0, displacement) / maxBounce);
+      } else {
+        displacement += delta * (1 - Math.max(0, -displacement) / maxBounce);
+      }
+      
+      // 4. 边界极值安全限制
       if (displacement > maxBounce) displacement = maxBounce;
       if (displacement < -maxBounce) displacement = -maxBounce;
       
       element.style.transform = `translateY(${displacement}px)`;
       element.style.transformOrigin = 'center';
       
-      // 重启防抖，当手势滚动停止时瞬间触发高弹性回弹
+      // 5. 延长防抖周期至 120ms，保证多帧物理滚轮连发时回弹逻辑不被提前切断
       clearTimeout(timer);
-      timer = setTimeout(resetSpring, 60);
+      timer = setTimeout(resetSpring, 120);
     }
   }, { passive: false });
 }
