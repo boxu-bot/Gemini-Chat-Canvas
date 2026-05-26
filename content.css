@@ -669,81 +669,81 @@ body.gcc-sidebar-active .chat-input-container {
 }
 
 
-/* ==================== 网页端 Hover 悬浮挂件 ==================== */
+/* ==================== 💎 全局自由划词工具舱 (Floating Selection Tooltip) ==================== */
 
-.gcc-hover-widget {
-  position: relative !important;
-  display: inline-flex !important;
-  vertical-align: middle !important;
-  margin-left: 10px !important;
-  gap: 4px;
-  background: rgba(30, 31, 35, 0.95) !important;
-  border: 1px solid #303135 !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
-  border-radius: 10px !important;
-  padding: 4px !important;
-  z-index: 9999 !important;
+.gcc-selection-tooltip {
+  position: absolute;
+  z-index: 100000;
+  background: rgba(30, 31, 35, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #303135;
+  border-radius: 20px;
+  padding: 4px 8px;
+  display: flex;
+  gap: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 10px rgba(138, 180, 248, 0.08);
+  pointer-events: auto;
+  box-sizing: border-box;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom center;
+}
+
+.gcc-selection-tooltip.gcc-tooltip-hidden {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  transform: scale(0.95) translate3d(0, 4px, 0);
+  transform: scale(0.9) translateY(8px);
+}
+
+.gcc-selection-tooltip.gcc-tooltip-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1) translateY(0);
+}
+
+.gcc-tooltip-btn {
+  background: transparent;
+  border: none;
+  color: #c4c7c5;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
 }
 
-/* 仅在鼠标悬停于当前行时，才精准展现其直接子代的句尾动作条 */
-li.gcc-li-relative {
-  position: relative !important;
-  padding-right: 0 !important;
-  box-sizing: border-box !important;
-}
-
-li.gcc-li-relative:hover > .gcc-hover-widget {
-  opacity: 1;
-  pointer-events: auto;
-  transform: scale(1) translate3d(0, 0, 0);
-}
-
-.gcc-widget-btn {
-  border: 1px solid #303135 !important;
-  background: #1e1e20 !important;
-  padding: 5px 10px !important;
-  border-radius: 6px !important;
-  cursor: pointer;
-  font-family: 'Outfit', sans-serif !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #c4c7c5 !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
-}
-
-.gcc-widget-btn:hover {
-  background: #2b2a2d !important;
-  border-color: #8ab4f8 !important;
-  color: #8ab4f8 !important;
+.gcc-tooltip-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
   transform: translateY(-0.5px);
-  box-shadow: 0 4px 10px rgba(138, 180, 248, 0.15) !important;
 }
 
-.gcc-widget-btn:active {
+.gcc-tooltip-btn:active {
   transform: translateY(0);
 }
 
-/* 平滑隐藏列表项的动画 */
-.gcc-li-hiding {
-  transform: scale(0.95) !important;
-  opacity: 0 !important;
-  max-height: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  border: none !important;
-  overflow: hidden !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+.gcc-tooltip-btn-retain {
+  color: #8ab4f8;
+}
+
+.gcc-tooltip-btn-retain:hover {
+  background: rgba(138, 180, 248, 0.1);
+  color: #c2e7ff;
+}
+
+.gcc-tooltip-btn-discuss {
+  color: #ff7da7;
+}
+
+.gcc-tooltip-btn-discuss:hover {
+  background: rgba(255, 125, 167, 0.1);
+  color: #ffb3c6;
 }
 
 /* 全局 Toast 通知 */

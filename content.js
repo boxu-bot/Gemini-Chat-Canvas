@@ -6,7 +6,6 @@
 let savedSnippets = [];
 let activeDiscussionItem = null;
 let activeDiscussionLi = null;
-let capturedSelectionText = "";
 let isWaitingForDiscussionReply = false;
 let initialRepliesCount = 0;
 let lastCapturedText = "";
@@ -571,6 +570,42 @@ function initSidebar() {
   const logEl = document.getElementById('gcc-thread-log');
   applySpringyScroll(shelf);
   applySpringyScroll(logEl);
+
+  // A2. 创建全局划词悬浮面板 (Floating Selection Tooltip Capsule)
+  let selectionTooltip = document.createElement('div');
+  selectionTooltip.id = 'gcc-selection-tooltip';
+  selectionTooltip.className = 'gcc-selection-tooltip gcc-tooltip-hidden';
+  selectionTooltip.innerHTML = `
+    <button class="gcc-tooltip-btn gcc-tooltip-btn-retain" title="留存选中内容至侧边栏暂存架">📌 留存选中</button>
+    <button class="gcc-tooltip-btn gcc-tooltip-btn-discuss" title="针对选中内容发起追问或讨论">💬 讨论选中</button>
+  `;
+  document.body.appendChild(selectionTooltip);
+  
+  // 绑定动作按钮事件
+  selectionTooltip.querySelector('.gcc-tooltip-btn-retain').addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const selText = getActiveSelectionText();
+    if (selText) {
+      retainSnippet(selText);
+      hideSelectionTooltip();
+      window.getSelection().removeAllRanges(); // 消费后立刻清空蓝条选区，视觉效果极佳！
+    }
+  });
+  
+  selectionTooltip.querySelector('.gcc-tooltip-btn-discuss').addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const selText = getActiveSelectionText();
+    if (selText) {
+      startDiscussion(selText, document.activeElement);
+      hideSelectionTooltip();
+      window.getSelection().removeAllRanges(); // 消费后立刻清空蓝条选区，聚焦讨论
+    }
+  });
+
+  // 初始化全局划词监听器
+  initSelectionListener();
 }
 
 // 侧边栏开启/关闭/折叠切换
@@ -598,80 +633,92 @@ function openSidebar() {
   }
 }
 
-// 7. 注入 Hover 挂件到列表条目
-function injectWidgetToLi(li) {
-  // 检查是否已经注入过挂件，规避重复操作
-  if (li.querySelector('.gcc-hover-widget') || li.classList.contains('gcc-li-relative')) return;
-  
-  li.classList.add('gcc-li-relative');
-  
-  const widget = document.createElement('div');
-  widget.className = 'gcc-hover-widget';
-  
-  widget.innerHTML = `
-    <button class="gcc-widget-btn gcc-btn-retain" title="留存当前步骤至侧边栏暂存架">📌 留存步骤</button>
-    <button class="gcc-widget-btn gcc-btn-discuss" title="针对当前步骤发起追问或调整">💬 讨论步骤</button>
-    <button class="gcc-widget-btn gcc-btn-hide" title="隐藏当前步骤，清理无用噪音">❌ 隐藏步骤</button>
-  `;
-  
-  li.appendChild(widget);
-  
-  const retainBtn = widget.querySelector('.gcc-btn-retain');
-  const discussBtn = widget.querySelector('.gcc-btn-discuss');
-  const hideBtn = widget.querySelector('.gcc-btn-hide');
-  
-  // 鼠标按下那一刻极速捕获当前页面用户划选的蓝条选区，防范点击移走焦点造成划词丢失
-  const captureSelection = () => {
-    const sel = window.getSelection().toString().trim();
-    if (sel.length > 0) {
-      capturedSelectionText = sel;
-      console.log("[Gemini Chat Canvas] Captured cursor selection text:", sel);
-    } else {
-      capturedSelectionText = "";
-    }
-  };
-  
-  retainBtn.addEventListener('mousedown', captureSelection);
-  discussBtn.addEventListener('mousedown', captureSelection);
-  
-  // 捕获干净的文本内容，移除按钮文本干扰（如果用户手动划选了部分文字，则优先以选中的划词作为讨论上下文）
-  const getCleanText = () => {
-    if (capturedSelectionText) {
-      const selected = capturedSelectionText;
-      capturedSelectionText = ""; // 消费后即重置
-      return selected;
-    }
-    
-    let clonedLi = li.cloneNode(true);
-    const widgetInClone = clonedLi.querySelector('.gcc-hover-widget');
-    if (widgetInClone) widgetInClone.remove();
-    return clonedLi.textContent.trim();
-  };
-  
-  // 绑定挂件按钮动作事件
-  retainBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    retainSnippet(getCleanText());
-  });
-  
-  discussBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    startDiscussion(getCleanText(), li);
-  });
-  
-  hideBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    hideLiElement(li);
-  });
+// 7. 全局自由划词工具舱状态管理
+let currentSelectionText = "";
+
+function getActiveSelectionText() {
+  return currentSelectionText;
 }
 
-// 功能 3：平滑隐藏列表项 DOM 节点
-function hideLiElement(li) {
-  li.classList.add('gcc-li-hiding');
-  setTimeout(() => {
-    li.style.display = 'none';
-    showToast("👁️ 该步骤已暂时平滑隐藏");
-  }, 300);
+function showSelectionTooltip(rect) {
+  const tooltip = document.getElementById('gcc-selection-tooltip');
+  if (!tooltip) return;
+  
+  tooltip.classList.remove('gcc-tooltip-hidden');
+  tooltip.classList.add('gcc-tooltip-visible');
+  
+  // 计算居中位置
+  const tooltipWidth = tooltip.offsetWidth || 192; // 估算宽度
+  const tooltipHeight = tooltip.offsetHeight || 38; // 估算高度
+  
+  // 浮现在选区的正上方 8px
+  const left = rect.left + rect.width / 2 - tooltipWidth / 2 + window.pageXOffset;
+  const top = rect.top - tooltipHeight - 8 + window.pageYOffset;
+  
+  // 边界防溢出保护
+  const safeLeft = Math.max(10, Math.min(window.innerWidth - tooltipWidth - 10, left));
+  const safeTop = Math.max(10, top);
+  
+  tooltip.style.left = `${safeLeft}px`;
+  tooltip.style.top = `${safeTop}px`;
+}
+
+function hideSelectionTooltip() {
+  const tooltip = document.getElementById('gcc-selection-tooltip');
+  if (tooltip) {
+    tooltip.classList.remove('gcc-tooltip-visible');
+    tooltip.classList.add('gcc-tooltip-hidden');
+  }
+  currentSelectionText = "";
+}
+
+// 绑定全局鼠标划词高亮监听器
+function initSelectionListener() {
+  // 鼠标抬起时，计算选区并弹出悬浮窗
+  document.addEventListener('mouseup', (e) => {
+    // 规避侧边栏或悬浮窗内部的操作，防止干扰
+    if (e.target.closest('#gcc-sidebar') || e.target.closest('#gcc-selection-tooltip')) {
+      return;
+    }
+    
+    setTimeout(() => {
+      const selection = window.getSelection();
+      const text = selection.toString().trim();
+      
+      // 过滤掉长度过小的选区（防单点击）
+      if (text.length > 1) {
+        try {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          
+          // 确保选区具有真实的高宽
+          if (rect.width > 2 && rect.height > 2) {
+            currentSelectionText = text;
+            showSelectionTooltip(rect);
+          } else {
+            hideSelectionTooltip();
+          }
+        } catch (err) {
+          hideSelectionTooltip();
+        }
+      } else {
+        hideSelectionTooltip();
+      }
+    }, 20);
+  });
+  
+  // 鼠标按下时，若点击在悬浮窗外部，立刻关闭悬浮窗
+  document.addEventListener('mousedown', (e) => {
+    if (e.target.closest('#gcc-selection-tooltip')) {
+      return;
+    }
+    hideSelectionTooltip();
+  });
+  
+  // 监听页面滚动，实时动态调整划词悬浮窗的位置或隐蔽它以防飘移
+  window.addEventListener('scroll', () => {
+    hideSelectionTooltip();
+  }, { passive: true });
 }
 
 // 子页签自由切换逻辑
@@ -968,49 +1015,26 @@ function trackDynamicReply() {
   }
 }
 
-// 9. 实时扫描并注入 Hover 按钮挂件
-function scanAndInject() {
-  // 极度强健的匹配规则：抓取页面上所有的 ol li 和 ul li 元素
-  const listItems = document.querySelectorAll('ol li, ul li');
-  
-  listItems.forEach(li => {
-    // 1. 规避侧边栏自带的暂存架卡片列表
-    if (li.closest('#gcc-sidebar')) return;
-    
-    // 2. 规避原站的左侧导航抽屉（避免在侧边导航菜单注入挂件）
-    if (li.closest('nav, aside, [class*="navigation"], [class*="sidebar"], [class*="drawer"]')) return;
-    
-    // 2.5 过滤层级分类父节点（如果 li 里面还包含嵌套列表，则它只是大分类，跳过！）
-    if (li.querySelector('ol, ul')) return;
-    
-    // 3. 过滤太短的内容节点，并进行挂件注入
-    if (li.textContent.trim().length > 1) {
-      injectWidgetToLi(li);
-    }
-  });
-}
-
 // 确认突变是否发生在插件自建节点内部，避免死循环突变
 function isPluginMutation(target) {
   if (!target) return false;
   const element = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
   if (!element) return false;
   
-  if (element.closest('#gcc-sidebar') || element.closest('#gcc-toast') || element.closest('.gcc-hover-widget')) {
+  if (element.closest('#gcc-sidebar') || element.closest('#gcc-toast') || element.closest('#gcc-selection-tooltip')) {
     return true;
   }
   return false;
 }
 
-// 10. 开启 DOM 实时 MutationObserver 监测与周期扫描双保险
+// 10. 开启 DOM 实时 MutationObserver 监测与同步
 function startObserver() {
   // 初始化侧边栏和 Toast 节点
   initSidebar();
-  scanAndInject();
   
-  // 双保险机制 1：实时 DOM 变化监听（全面监听添加节点与文本更改）
+  // DOM 变化监听（专注于流式回答同步，极大降低 CPU 功耗，页面运行速度飞跃提升！）
   const observer = new MutationObserver((mutations) => {
-    // 1. 过滤掉所有完全由插件本身引起的 DOM 变化，彻底防范死循环与内存崩溃
+    // 过滤掉所有完全由插件本身引起的 DOM 变化
     let isPurePluginMutation = true;
     for (let mutation of mutations) {
       if (!isPluginMutation(mutation.target)) {
@@ -1019,23 +1043,10 @@ function startObserver() {
       }
     }
     if (isPurePluginMutation) {
-      return; // 如果全是插件自建节点引发的变化，直接退出，绝对安全！
+      return;
     }
     
-    // 2. 检查是否有真实的页面内容节点变化，来决定是否触发注入
-    let shouldScan = false;
-    for (let mutation of mutations) {
-      if (mutation.addedNodes.length > 0 || mutation.type === 'characterData') {
-        shouldScan = true;
-        break;
-      }
-    }
-    
-    if (shouldScan) {
-      scanAndInject();
-    }
-    
-    // 3. 实时同步渲染讨论问答
+    // 实时同步渲染讨论问答文字流
     trackDynamicReply();
   });
   
@@ -1045,9 +1056,8 @@ function startObserver() {
     characterData: true
   });
   
-  // 双保险机制 2：周期性定时器自动兜底扫描（应对 SPA 路由无刷跳转及各种极端渲染延迟）
+  // 定时器周期保活同步
   setInterval(() => {
-    scanAndInject();
     trackDynamicReply();
   }, 1000);
 }
