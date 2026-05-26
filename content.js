@@ -428,7 +428,7 @@ function initSidebar() {
     <div class="gcc-pane" id="gcc-pane-thread">
       <div class="gcc-thread">
         <!-- 讨论上下文小字标签，收起高度节省空间 -->
-        <div class="gcc-context-tag" id="gcc-context-tag">📌 讨论上下文: 尚未选择步骤</div>
+        <div class="gcc-context-tag" id="gcc-context-tag">📌 讨论上下文: 尚未选择内容</div>
         
         <!-- 讨论历史看板：支持多轮对话 -->
         <div class="gcc-thread-log" id="gcc-thread-log">
@@ -447,7 +447,7 @@ function initSidebar() {
             </svg>
           </button>
           <div class="gcc-input-wrapper">
-            <textarea class="gcc-input" id="gcc-thread-input" placeholder="问问 Gemini..." disabled></textarea>
+            <textarea class="gcc-input" id="gcc-thread-input" placeholder="问问AI" disabled></textarea>
             <button class="gcc-input-btn" id="gcc-thread-send-btn" disabled>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -722,7 +722,7 @@ function startDiscussion(content, li) {
   adjustTextareaHeight(threadInput); // 初始化输入框为单行自适应高度
   threadInput.disabled = false;
   threadSendBtn.disabled = true; // 初始为空，置灰禁用
-  threadInput.placeholder = "输入您的问题...";
+  threadInput.placeholder = "问问AI";
   threadInput.focus();
   
   // 初始化清理历史记录，呈现空讨论看板
@@ -955,7 +955,7 @@ function trackDynamicReply() {
       const threadSendBtn = document.getElementById('gcc-thread-send-btn');
       if (threadInput) {
         threadInput.disabled = false;
-        threadInput.placeholder = "输入您的问题...";
+        threadInput.placeholder = "问问AI";
         threadInput.focus();
       }
       if (threadSendBtn) {
