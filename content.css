@@ -528,6 +528,69 @@ body.gcc-sidebar-active .chat-input-container {
   display: inline-block;
 }
 
+/* 超时容错诊断面板样式 */
+.gcc-timeout-warning {
+  color: #f28b82;
+  line-height: 1.6;
+  display: block;
+  font-size: 12.5px;
+  font-style: normal;
+}
+
+.gcc-timeout-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.gcc-timeout-retry-btn {
+  padding: 5px 12px !important;
+  font-size: 11.5px !important;
+  border-radius: 14px !important;
+  background: #303135 !important;
+  color: #ffffff !important;
+  border: 1px solid #444746 !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gcc-timeout-retry-btn:hover {
+  background: #3c4043 !important;
+  border-color: #8ab4f8 !important;
+  color: #8ab4f8 !important;
+  transform: translateY(-1px);
+}
+
+.gcc-timeout-retry-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.gcc-timeout-cancel-btn {
+  padding: 5px 12px !important;
+  font-size: 11.5px !important;
+  border-radius: 14px !important;
+  background: rgba(234, 67, 53, 0.08) !important;
+  color: #f28b82 !important;
+  border: 1px solid rgba(234, 67, 53, 0.2) !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gcc-timeout-cancel-btn:hover {
+  background: rgba(234, 67, 53, 0.18) !important;
+  border-color: #ea4335 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.gcc-timeout-cancel-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
 /* ==================== 🛠️ 圆润输入胶囊 (Capsule Input Box) ==================== */
 
 .gcc-input-container {

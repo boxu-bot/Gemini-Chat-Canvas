@@ -7,6 +7,7 @@ let savedSnippets = [];
 let activeDiscussionItem = null;
 let activeDiscussionLi = null;
 let isWaitingForDiscussionReply = false;
+let discussionTimeoutTimer = null; // 讨论响应超时监视器
 let initialRepliesCount = 0;
 let lastCapturedText = "";
 let lastChangeTime = 0;
@@ -552,10 +553,127 @@ function initSidebar() {
         lockViewportScroll(activeDiscussionLi);
       }
       
+      // 启动 60s 超时连接挂死监控
+      clearTimeout(discussionTimeoutTimer);
+      discussionTimeoutTimer = setTimeout(() => {
+        handleDiscussionTimeout(prompt, text);
+      }, 60000);
+      
       showToast("🚀 讨论指令已载入并自动发送！");
       clickGeminiSend();
     }
   };
+
+  // 🔄 超时重试讨论发送逻辑
+  const retrySendDiscussion = (promptText, userText) => {
+    // 移除超时失败的 AI 气泡
+    const pendingBubble = document.querySelector('.gcc-chat-bubble.ai.pending');
+    if (pendingBubble) {
+      pendingBubble.remove();
+    }
+    
+    if (setGeminiInputText(promptText)) {
+      // 重新插入 AI 等待气泡
+      const logEl = document.getElementById('gcc-thread-log');
+      if (logEl) {
+        const aiBubble = document.createElement('div');
+        aiBubble.className = 'gcc-chat-bubble ai pending';
+        aiBubble.innerHTML = `
+          <div class="gcc-ai-header">
+            <svg class="gcc-sparkle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C12 2 12.3 8.3 15.6 11.4C18.7 14.5 22 12 22 12C22 12 15.7 12.3 12.6 15.6C9.5 18.7 12 22 12 22C12 22 11.7 15.7 8.4 12.6C5.3 9.5 2 12 2 12C2 12 8.3 11.7 11.4 8.4C14.5 5.3 12 2 12 2Z" fill="url(#gemini-logo-grad)"/>
+            </svg>
+            <span>Gemini</span>
+          </div>
+          <div class="gcc-bubble-content gcc-ai-content">🤖 正在等候 AI 响应并在此处同步...</div>
+        `;
+        logEl.appendChild(aiBubble);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      
+      // 重新设定 60s 超时监控
+      clearTimeout(discussionTimeoutTimer);
+      discussionTimeoutTimer = setTimeout(() => {
+        handleDiscussionTimeout(promptText, userText);
+      }, 60000);
+      
+      isWaitingForDiscussionReply = true;
+      hasStartedGenerating = false;
+      lastCapturedText = "";
+      lastChangeTime = Date.now();
+      
+      // 开启滚动锁定以完全阻止主页面滚走
+      if (activeDiscussionLi) {
+        lockViewportScroll(activeDiscussionLi);
+      }
+      
+      showToast("🔄 正在重新投喂尝试连接...");
+      clickGeminiSend();
+    }
+  };
+
+  // ⚠️ 讨论响应 60s 超时容错诊断处理器
+  const handleDiscussionTimeout = (promptText, userText) => {
+    if (!isWaitingForDiscussionReply || hasStartedGenerating) return;
+    
+    const pendingBubble = document.querySelector('.gcc-chat-bubble.ai.pending');
+    if (pendingBubble) {
+      const contentEl = pendingBubble.querySelector('.gcc-ai-content');
+      if (contentEl) {
+        // 渲染带有重试和取消按钮的超时警告
+        contentEl.innerHTML = `
+          <span class="gcc-timeout-warning">⚠️ <b>AI 响应超时。</b>网络连接卡滞或 Gemini 平台发生异常，请选择：</span>
+          <div class="gcc-timeout-actions">
+            <button class="gcc-btn gcc-timeout-retry-btn">🔄 一键重试</button>
+            <button class="gcc-btn gcc-timeout-cancel-btn">❌ 放弃等待</button>
+          </div>
+        `;
+        
+        // 绑定一键重试点击逻辑
+        contentEl.querySelector('.gcc-timeout-retry-btn').addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          retrySendDiscussion(promptText, userText);
+        });
+        
+        // 绑定放弃等待点击逻辑
+        contentEl.querySelector('.gcc-timeout-cancel-btn').addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // 彻底恢复状态机
+          isWaitingForDiscussionReply = false;
+          unlockViewportScroll();
+          clearTimeout(discussionTimeoutTimer);
+          discussionTimeoutTimer = null;
+          
+          // 将 pending 气泡转为已中止警告
+          pendingBubble.classList.remove('pending');
+          contentEl.innerHTML = `⚠️ <b>AI 响应超时。</b>已主动中止等待。`;
+          
+          // 极致体贴交互：自动将用户未发送成功的话退回到输入框，并聚焦激活！
+          const threadInput = document.getElementById('gcc-thread-input');
+          const threadSendBtn = document.getElementById('gcc-thread-send-btn');
+          if (threadInput) {
+            threadInput.disabled = false;
+            threadInput.placeholder = "问问AI";
+            threadInput.value = userText;
+            adjustTextareaHeight(threadInput);
+            threadInput.focus();
+          }
+          if (threadSendBtn) {
+            threadSendBtn.disabled = false;
+          }
+          
+          showToast("ℹ️ 已取消等待，问题已退回输入框");
+        });
+      }
+    }
+  };
+
+  // 暴露给测试套件进行超时模拟与状态验证
+  window.__handleDiscussionTimeout = handleDiscussionTimeout;
+  window.__retrySendDiscussion = retrySendDiscussion;
   
   threadSendBtn.addEventListener('click', sendDiscussion);
   threadInput.addEventListener('keydown', (e) => {
@@ -759,9 +877,13 @@ function startDiscussion(content, li) {
     contextEl.title = content; // 悬停气泡提示完整内容
   }
   
-  // 强力重置前一轮讨论的等待状态与可能残留的滚动物理锁
+  // 强力重置前一轮讨论的等待状态与可能残留的滚动物理锁与超时器
   isWaitingForDiscussionReply = false;
   unlockViewportScroll();
+  if (discussionTimeoutTimer) {
+    clearTimeout(discussionTimeoutTimer);
+    discussionTimeoutTimer = null;
+  }
   hasStartedGenerating = false;
   lastCapturedText = "";
   
@@ -964,6 +1086,13 @@ function trackDynamicReply() {
     hasStartedGenerating = true;
     lastCapturedText = rawText;
     lastChangeTime = Date.now();
+    
+    // 成功连接并产生字符输出，立即清除 60s 挂死超时器
+    if (discussionTimeoutTimer) {
+      clearTimeout(discussionTimeoutTimer);
+      discussionTimeoutTimer = null;
+      console.log("[Gemini Chat Canvas] Generation started. Timeout timer cleared.");
+    }
   }
   
   const pendingContent = document.querySelector('.gcc-chat-bubble.ai.pending .gcc-ai-content');
@@ -991,6 +1120,12 @@ function trackDynamicReply() {
     if (Date.now() - lastChangeTime > 3500) {
       isWaitingForDiscussionReply = false;
       unlockViewportScroll(); // 接收完毕，释放滚动锁定
+      
+      // 成功结束，清理可能存在的超时器
+      if (discussionTimeoutTimer) {
+        clearTimeout(discussionTimeoutTimer);
+        discussionTimeoutTimer = null;
+      }
       
       const pendingBubble = document.querySelector('.gcc-chat-bubble.ai.pending');
       if (pendingBubble) {
