@@ -1233,7 +1233,7 @@ function optimizeAggregated() {
 }
 
 // 7.8 格式化 AI 文本，将平台特有的引用标记转换为高颜值的 HTML 引用胶囊
-function formatAIText(rawText) {
+function formatAIText(rawText, hostElement) {
   if (!rawText) return "";
   
   // A. 过滤自身按钮残留文本
@@ -1256,7 +1256,39 @@ function formatAIText(rawText) {
       }
     }
     
-    // 渲染高颜值引用胶囊
+    // 智能提取宿主大模型网页原本真实的引用链接
+    let citationUrl = "";
+    if (hostElement) {
+      const originalLinks = Array.from(hostElement.querySelectorAll('a[href]'));
+      // 1. 寻找文本匹配该编号的链接（支持: [1], 1 等各种包裹格式）
+      const matchedLink = originalLinks.find(link => {
+        const linkText = link.textContent.trim();
+        return linkText === String(num) || 
+               linkText === `[${num}]` || 
+               linkText.includes(`[${num}]`) ||
+               link.getAttribute('href').includes('citation') ||
+               link.className.includes('footnote') ||
+               link.className.includes('citation');
+      });
+      
+      if (matchedLink) {
+        citationUrl = matchedLink.getAttribute('href');
+      } else {
+        // 2. 兜底策略：如果无法通过文本精准定位，则尝试使用索引对应的第 num 个有效链接作为候选
+        const validLinks = originalLinks.filter(link => {
+          const href = link.getAttribute('href');
+          return href && href !== '#' && !href.startsWith('javascript:');
+        });
+        if (validLinks[num - 1]) {
+          citationUrl = validLinks[num - 1].getAttribute('href');
+        }
+      }
+    }
+    
+    // 渲染高颜值引用胶囊（若找到真实链接则使用 <a> 标签支持新建窗口，否则降级使用 <span>）
+    if (citationUrl && citationUrl !== '#') {
+      return `<a class="gcc-citation-pill" href="${escapeHtml(citationUrl)}" target="_blank" rel="noopener noreferrer" title="查看引用 [${num}]">${num}</a>`;
+    }
     return `<span class="gcc-citation-pill" title="查看引用 [${num}]">${num}</span>`;
   });
   
@@ -1356,7 +1388,7 @@ function trackDynamicReply() {
   
   const pendingContent = document.querySelector('.gcc-chat-bubble.ai.pending .gcc-ai-content');
   if (pendingContent) {
-    pendingContent.innerHTML = formatAIText(rawText);
+    pendingContent.innerHTML = formatAIText(rawText, latestReply);
     
     // 自动滚下日志区以保持显示最新的一句回答 (智能滚动锁定)
     const logEl = document.getElementById('gcc-thread-log');

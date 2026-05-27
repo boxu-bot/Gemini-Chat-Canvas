@@ -890,6 +890,7 @@ body.gcc-sidebar-active .chat-input-container {
   vertical-align: middle;
   cursor: pointer;
   user-select: none;
+  text-decoration: none !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
