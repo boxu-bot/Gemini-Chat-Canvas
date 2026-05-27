@@ -85,11 +85,11 @@ body.gcc-sidebar-active .chat-input-container {
 
 /* 顶部工具栏与标题 */
 .gcc-header {
-  padding: 20px 24px 16px 24px;
+  padding: 16px 20px 12px 20px;
   border-bottom: 1px solid #303135;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
@@ -148,8 +148,8 @@ body.gcc-sidebar-active .chat-input-container {
 .gcc-tabs {
   background: #1e1e20;
   border: 1px solid #303135;
-  border-radius: 24px;
-  padding: 4px;
+  border-radius: 20px;
+  padding: 3px;
   display: flex;
   gap: 2px;
 }
@@ -158,12 +158,12 @@ body.gcc-sidebar-active .chat-input-container {
   flex: 1;
   background: transparent;
   border: none;
-  border-radius: 20px;
+  border-radius: 16px;
   color: #c4c7c5;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 8px 12px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
@@ -434,8 +434,8 @@ body.gcc-sidebar-active .chat-input-container {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
-  background: #131314;
-  border: 1px solid #303135;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   margin-bottom: 16px;
   display: flex;
@@ -942,18 +942,29 @@ body.gcc-sidebar-active .chat-input-container {
   background: rgba(240, 244, 249, 0.85) !important;
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-tab {
+#gcc-sidebar.gcc-theme-light .gcc-tab-btn {
   color: #5f6368 !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-tab.active {
+#gcc-sidebar.gcc-theme-light .gcc-tab-btn.active {
   background: #ffffff !important;
   color: #1a73e8 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
+/* 讨论历史看板与卡片暂存架的背景颜色 */
+#gcc-sidebar.gcc-theme-light .gcc-thread-log {
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.01) !important;
+}
+
+#gcc-sidebar.gcc-theme-light .gcc-thread-log-empty {
+  color: #5f6368 !important;
+}
+
 /* 暂存卡片 */
 #gcc-sidebar.gcc-theme-light .gcc-card {
-  background: rgba(240, 244, 249, 0.75) !important;
+  background: rgba(255, 255, 255, 0.5) !important;
   border: 1px solid rgba(0, 0, 0, 0.05) !important;
   color: #1f1f1f !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
@@ -961,7 +972,7 @@ body.gcc-sidebar-active .chat-input-container {
 #gcc-sidebar.gcc-theme-light .gcc-card:hover {
   border-color: rgba(26, 115, 232, 0.3) !important;
   box-shadow: 0 4px 12px rgba(26, 115, 232, 0.08) !important;
-  background: rgba(240, 244, 249, 0.9) !important;
+  background: rgba(255, 255, 255, 0.75) !important;
 }
 #gcc-sidebar.gcc-theme-light .gcc-card-header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
@@ -989,13 +1000,14 @@ body.gcc-sidebar-active .chat-input-container {
 }
 
 /* 讨论对话气泡 */
-#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.user .gcc-bubble-content {
+#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.user {
   background: rgba(227, 242, 253, 0.85) !important;
   color: #0d47a1 !important;
   border: 1px solid rgba(26, 115, 232, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.06) !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.ai .gcc-bubble-content {
-  background: rgba(248, 249, 250, 0.9) !important;
+#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.ai {
+  background: rgba(255, 255, 255, 0.9) !important;
   color: #3c4043 !important;
   border: 1px solid rgba(0, 0, 0, 0.05) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
@@ -1003,10 +1015,39 @@ body.gcc-sidebar-active .chat-input-container {
 #gcc-sidebar.gcc-theme-light .gcc-ai-header {
   color: #1f1f1f !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.ai.pending .gcc-bubble-content {
+#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.ai.pending {
   border-style: dashed !important;
   border-color: rgba(0, 0, 0, 0.15) !important;
   color: #5f6368 !important;
+}
+
+/* 功能性按钮的 Gemini / DeepSeek 风格定制 */
+#gcc-sidebar.gcc-theme-light .gcc-btn-primary {
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-btn-primary:hover {
+  background: #1557b0 !important;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.25) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-btn-secondary {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #5f6368 !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #1a73e8 !important;
+  border-color: rgba(26, 115, 232, 0.2) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-btn-large {
+  background: linear-gradient(135deg, #1a73e8, #4285f4) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.15) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-btn-large:hover {
+  background: linear-gradient(135deg, #1557b0, #1a73e8) !important;
+  box-shadow: 0 6px 18px rgba(26, 115, 232, 0.25) !important;
 }
 
 /* 文献引用胶囊 (Light Mode Underneath) */
@@ -1043,15 +1084,29 @@ body.gcc-sidebar-active .chat-input-container {
   color: #9aa0a6 !important;
 }
 #gcc-sidebar.gcc-theme-light .gcc-input-action-btn {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #5f6368 !important;
 }
 #gcc-sidebar.gcc-theme-light .gcc-input-action-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05) !important;
+  background: rgba(26, 115, 232, 0.08) !important;
+  border-color: rgba(26, 115, 232, 0.2) !important;
   color: #1a73e8 !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-input-action-btn.send-btn:hover:not(:disabled) {
+#gcc-sidebar.gcc-theme-light .gcc-input-btn {
+  background: rgba(0, 0, 0, 0.03) !important;
+  color: #b0b4b9 !important;
+  border: none !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-btn:not(:disabled) {
   background: #1a73e8 !important;
   color: #ffffff !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-btn:not(:disabled):hover {
+  background: #1557b0 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2) !important;
+  transform: scale(1.08) !important;
 }
 
 /* 空状态 */
