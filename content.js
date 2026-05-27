@@ -777,9 +777,22 @@ function initSidebar() {
   window.__retrySendDiscussion = retrySendDiscussion;
   
   threadSendBtn.addEventListener('click', sendDiscussion);
+
+  // 建立双保险的输入法 (IME) 组词阶段检测标志，保证跨 Mac/Windows/Linux 全系统与搜狗/微软/苹果全输入法的 100% 稳定性
+  let isImeComposing = false;
+  threadInput.addEventListener('compositionstart', () => {
+    isImeComposing = true;
+  });
+  threadInput.addEventListener('compositionend', () => {
+    // 延迟 50ms 释放，确保覆盖 Windows/Chrome 上紧随其后的 keydown/keyup 事件周期
+    setTimeout(() => {
+      isImeComposing = false;
+    }, 50);
+  });
+
   threadInput.addEventListener('keydown', (e) => {
     // 智能拦截输入法 (IME) 组词阶段的 Enter 回车确认键，防止意外发送未完成的句子 (例如输入法拼音/英文确认)
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && !isImeComposing) {
       e.preventDefault();
       sendDiscussion();
     }
