@@ -440,6 +440,60 @@ function adjustTextareaHeight(textarea) {
   }
 }
 
+// 5.5 智能探测宿主环境是否处于深色模式，提供像素级 HSL 亮度计算兜底
+function isHostDarkMode() {
+  const html = document.documentElement;
+  const body = document.body;
+  
+  // A. 探测平台属性标记
+  if (html.classList.contains('dark') || html.classList.contains('dark-theme') || html.getAttribute('data-theme') === 'dark' || html.getAttribute('theme') === 'dark') {
+    return true;
+  }
+  if (body && (body.classList.contains('dark') || body.classList.contains('dark-theme') || body.getAttribute('data-theme') === 'dark')) {
+    return true;
+  }
+  
+  // B. 媒体查询探测
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    if (body) {
+      const bg = window.getComputedStyle(body).backgroundColor;
+      const rgb = bg.match(/\d+/g);
+      if (rgb && rgb.length >= 3) {
+        const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+        return brightness < 128;
+      }
+    }
+    return true;
+  }
+  
+  // C. HSL 物理背景亮度计算探测 (终极防线)
+  if (body) {
+    const bg = window.getComputedStyle(body).backgroundColor;
+    const rgb = bg.match(/\d+/g);
+    if (rgb && rgb.length >= 3) {
+      const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+      return brightness < 128;
+    }
+  }
+  
+  return false; // 默认浅色模式
+}
+
+// 5.6 智能同步侧边栏主题外观
+function syncSidebarTheme() {
+  const sidebar = document.getElementById('gcc-sidebar');
+  if (!sidebar) return;
+  
+  const isDark = isHostDarkMode();
+  if (isDark) {
+    sidebar.classList.remove('gcc-theme-light');
+    sidebar.classList.add('gcc-theme-dark');
+  } else {
+    sidebar.classList.remove('gcc-theme-dark');
+    sidebar.classList.add('gcc-theme-light');
+  }
+}
+
 // 6. 初始化侧边栏 DOM 及注册事件
 function initSidebar() {
   if (document.getElementById('gcc-sidebar')) return;
@@ -553,6 +607,9 @@ function initSidebar() {
   `;
   
   document.body.appendChild(sidebar);
+  
+  // D. 智能探测并应用当前宿主平台的主题外观
+  syncSidebarTheme();
   
   // C. 绑定基础事件监听器
   document.getElementById('gcc-close-btn').addEventListener('click', closeSidebar);
@@ -1379,6 +1436,9 @@ function startObserver() {
   
   // DOM 变化监听（专注于流式回答同步，极大降低 CPU 功耗，页面运行速度飞跃提升！）
   const observer = new MutationObserver((mutations) => {
+    // 实时监测并同步宿主平台的主题变化，提供极致润滑的肤色同步体验
+    syncSidebarTheme();
+
     // 过滤掉所有完全由插件本身引起的 DOM 变化
     let isPurePluginMutation = true;
     for (let mutation of mutations) {
@@ -1404,6 +1464,7 @@ function startObserver() {
   // 定时器周期保活同步
   setInterval(() => {
     trackDynamicReply();
+    syncSidebarTheme(); // 周期性兜底同步主题外观
   }, 1000);
 }
 

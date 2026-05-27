@@ -899,3 +899,165 @@ body.gcc-sidebar-active .chat-input-container {
   transform: scale(1.08);
   box-shadow: 0 0 6px rgba(168, 199, 250, 0.2);
 }
+
+/* ==========================================================================
+   Omni Canvas (万能画布) - 高清轻量浅色毛玻璃主题覆盖层
+   ========================================================================== */
+#gcc-sidebar.gcc-theme-light {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.06) !important;
+  color: #1f1f1f !important;
+}
+
+#gcc-sidebar.gcc-theme-light #gcc-toggle-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05) !important;
+}
+#gcc-sidebar.gcc-theme-light #gcc-toggle-btn:hover {
+  background: #ffffff !important;
+  border-color: #1a73e8 !important;
+  box-shadow: -6px 0 24px rgba(26, 115, 232, 0.15) !important;
+}
+
+#gcc-sidebar.gcc-theme-light .gcc-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-title {
+  color: #1f1f1f !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-close-btn {
+  color: #5f6368 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-close-btn:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #1f1f1f !important;
+}
+
+/* 页签栏 */
+#gcc-sidebar.gcc-theme-light .gcc-tabs {
+  background: rgba(240, 244, 249, 0.85) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-tab {
+  color: #5f6368 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-tab.active {
+  background: #ffffff !important;
+  color: #1a73e8 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 暂存卡片 */
+#gcc-sidebar.gcc-theme-light .gcc-card {
+  background: rgba(240, 244, 249, 0.75) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  color: #1f1f1f !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card:hover {
+  border-color: rgba(26, 115, 232, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.08) !important;
+  background: rgba(240, 244, 249, 0.9) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-title {
+  color: #1f1f1f !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-index {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #5f6368 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-actions {
+  border-top: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-btn {
+  color: #5f6368 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-btn:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #1a73e8 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-btn.delete:hover {
+  color: #d93025 !important;
+  background: rgba(217, 48, 37, 0.08) !important;
+}
+
+/* 讨论对话气泡 */
+#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.user .gcc-bubble-content {
+  background: rgba(227, 242, 253, 0.85) !important;
+  color: #0d47a1 !important;
+  border: 1px solid rgba(26, 115, 232, 0.15) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.ai .gcc-bubble-content {
+  background: rgba(248, 249, 250, 0.9) !important;
+  color: #3c4043 !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-ai-header {
+  color: #1f1f1f !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-chat-bubble.ai.pending .gcc-bubble-content {
+  border-style: dashed !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #5f6368 !important;
+}
+
+/* 文献引用胶囊 (Light Mode Underneath) */
+#gcc-sidebar.gcc-theme-light .gcc-citation-pill {
+  background: rgba(26, 115, 232, 0.08) !important;
+  color: #1a73e8 !important;
+  border: 1px solid rgba(26, 115, 232, 0.18) !important;
+  box-shadow: 0 1px 3px rgba(26, 115, 232, 0.04) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-citation-pill:hover {
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3) !important;
+}
+
+/* 底部输入舱 */
+#gcc-sidebar.gcc-theme-light .gcc-input-container {
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-wrapper {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-wrapper:focus-within {
+  border-color: #1a73e8 !important;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15), 0 2px 8px rgba(26, 115, 232, 0.08) !important;
+}
+#gcc-sidebar.gcc-theme-light #gcc-thread-input {
+  color: #1f1f1f !important;
+}
+#gcc-sidebar.gcc-theme-light #gcc-thread-input::placeholder {
+  color: #9aa0a6 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-action-btn {
+  color: #5f6368 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-action-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #1a73e8 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-input-action-btn.send-btn:hover:not(:disabled) {
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+}
+
+/* 空状态 */
+#gcc-sidebar.gcc-theme-light .gcc-empty-title {
+  color: #5f6368 !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-empty-text {
+  color: #80868b !important;
+}
