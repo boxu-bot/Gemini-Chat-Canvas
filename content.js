@@ -778,7 +778,8 @@ function initSidebar() {
   
   threadSendBtn.addEventListener('click', sendDiscussion);
   threadInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // 智能拦截输入法 (IME) 组词阶段的 Enter 回车确认键，防止意外发送未完成的句子 (例如输入法拼音/英文确认)
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
       e.preventDefault();
       sendDiscussion();
     }
