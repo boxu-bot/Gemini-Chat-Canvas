@@ -1067,8 +1067,8 @@ body.gcc-sidebar-active .chat-input-container {
 
 /* 底部输入舱 */
 #gcc-sidebar.gcc-theme-light .gcc-input-container {
-  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
-  background: rgba(255, 255, 255, 0.4) !important;
+  border-top: none !important;
+  background: transparent !important;
 }
 #gcc-sidebar.gcc-theme-light .gcc-input-wrapper {
   background: rgba(255, 255, 255, 0.45) !important;
