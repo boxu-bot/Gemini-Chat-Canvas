@@ -1236,6 +1236,20 @@ function optimizeAggregated() {
 function formatAIText(rawText, hostElement) {
   if (!rawText) return "";
   
+  // 智能提取元素的真实跳转 URL，兜底兼容 data-href/data-url 等属性
+  const getElementUrl = (el) => {
+    if (!el) return "";
+    const href = el.getAttribute('href');
+    const dataHref = el.getAttribute('data-href') || el.getAttribute('data-url') || el.getAttribute('data-original-url');
+    if (dataHref && dataHref !== '#' && !dataHref.startsWith('javascript:')) {
+      return dataHref;
+    }
+    if (href && href !== '#' && !href.startsWith('javascript:')) {
+      return href;
+    }
+    return "";
+  };
+  
   // A. 过滤自身按钮残留文本
   let text = rawText.replace(/📌 留存步骤\s*💬 讨论步骤\s*❌ 隐藏步骤/g, '').trim();
   
@@ -1259,29 +1273,87 @@ function formatAIText(rawText, hostElement) {
     // 智能提取宿主大模型网页原本真实的引用链接
     let citationUrl = "";
     if (hostElement) {
-      const originalLinks = Array.from(hostElement.querySelectorAll('a[href]'));
-      // 1. 寻找文本匹配该编号的链接（支持: [1], 1 等各种包裹格式）
-      const matchedLink = originalLinks.find(link => {
+      // 1. 获取包含全部可能链接的 message container
+      const messageContainer = hostElement.closest('div[class*="message"]') || hostElement.closest('[class*="reply"]') || hostElement.parentElement || hostElement;
+      const originalLinks = Array.from(messageContainer.querySelectorAll('a'));
+      
+      // 2. 阶段一：高精确度文本/属性匹配
+      let targetLink = originalLinks.find(link => {
         const linkText = link.textContent.trim();
-        return linkText === String(num) || 
-               linkText === `[${num}]` || 
-               linkText.includes(`[${num}]`) ||
-               link.getAttribute('href').includes('citation') ||
-               link.className.includes('footnote') ||
-               link.className.includes('citation');
+        const href = link.getAttribute('href') || "";
+        const className = link.className || "";
+        
+        // A. 链接文字直接就是编号，如 "[1]", "1"
+        if (linkText === String(num) || linkText === `[${num}]` || linkText === `${num}`) {
+          return true;
+        }
+        // B. 链接的 className 包含 footnote / citation 且文本包含编号
+        if ((className.includes('footnote') || className.includes('citation')) && linkText.includes(String(num))) {
+          return true;
+        }
+        // C. href 中直接包含 citation 且文本匹配
+        if (href.includes('citation') && linkText.includes(String(num))) {
+          return true;
+        }
+        return false;
       });
       
-      if (matchedLink) {
-        citationUrl = matchedLink.getAttribute('href');
-      } else {
-        // 2. 兜底策略：如果无法通过文本精准定位，则尝试使用索引对应的第 num 个有效链接作为候选
-        const validLinks = originalLinks.filter(link => {
-          const href = link.getAttribute('href');
-          return href && href !== '#' && !href.startsWith('javascript:');
+      // 3. 阶段二：列表项/上下文父容器匹配（针对 Sources Bento 列表，如 "1. 百度百科 - 链接"）
+      if (!targetLink) {
+        targetLink = originalLinks.find(link => {
+          // 查找最贴近的列表项或来源卡片容器
+          const container = link.closest('li') || link.closest('[class*="source"]') || link.closest('[class*="item"]') || link.parentElement;
+          if (container) {
+            const containerText = container.textContent.trim();
+            // 如果容器文本以 "1." 或 "1" 或 "[1]" 开头/包含，说明这就是第 1 个来源项！
+            if (containerText.startsWith(`${num}.`) || 
+                containerText.startsWith(`${num} `) || 
+                containerText.startsWith(`[${num}]`)) {
+              return true;
+            }
+          }
+          return false;
         });
-        if (validLinks[num - 1]) {
-          citationUrl = validLinks[num - 1].getAttribute('href');
+      }
+      
+      // 4. 阶段三：模糊过滤兜底（排除普通非引用外链，按物理顺序寻找）
+      if (!targetLink) {
+        // 过滤出可能的所有引用外链（优先保留含有 citation, footnote, source 属性/类名的链接）
+        const citationCandidates = originalLinks.filter(link => {
+          const href = link.getAttribute('href') || "";
+          const className = link.className || "";
+          const dataHref = link.getAttribute('data-href') || link.getAttribute('data-url') || "";
+          const fullUrl = href + dataHref;
+          
+          if (!fullUrl || fullUrl === '#' || fullUrl.startsWith('javascript:')) return false;
+          
+          if (className.includes('footnote') || className.includes('citation') || className.includes('source') ||
+              fullUrl.includes('citation') || fullUrl.includes('footnote')) {
+            return true;
+          }
+          return false;
+        });
+        
+        if (citationCandidates[num - 1]) {
+          targetLink = citationCandidates[num - 1];
         }
+      }
+      
+      // 5. 阶段四：物理顺序终极兜底（如果上面都找不到，在所有有效链接中取第 num - 1 个）
+      if (!targetLink) {
+        const allValidLinks = originalLinks.filter(link => {
+          const href = link.getAttribute('href') || "";
+          const dataHref = link.getAttribute('data-href') || link.getAttribute('data-url') || "";
+          const fullUrl = href + dataHref;
+          return fullUrl && fullUrl !== '#' && !fullUrl.startsWith('javascript:');
+        });
+        if (allValidLinks[num - 1]) {
+          targetLink = allValidLinks[num - 1];
+        }
+      }
+      
+      if (targetLink) {
+        citationUrl = getElementUrl(targetLink);
       }
     }
     
