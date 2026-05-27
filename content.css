@@ -964,8 +964,8 @@ body.gcc-sidebar-active .chat-input-container {
 
 /* 暂存卡片 */
 #gcc-sidebar.gcc-theme-light .gcc-card {
-  background: rgba(255, 255, 255, 0.5) !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
   color: #1f1f1f !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
 }
@@ -973,6 +973,9 @@ body.gcc-sidebar-active .chat-input-container {
   border-color: rgba(26, 115, 232, 0.3) !important;
   box-shadow: 0 4px 12px rgba(26, 115, 232, 0.08) !important;
   background: rgba(255, 255, 255, 0.75) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-text {
+  color: #1f1f1f !important; /* Extremely high readability dark color */
 }
 #gcc-sidebar.gcc-theme-light .gcc-card-header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
@@ -987,16 +990,25 @@ body.gcc-sidebar-active .chat-input-container {
 #gcc-sidebar.gcc-theme-light .gcc-card-actions {
   border-top: 1px solid rgba(0, 0, 0, 0.04) !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-card-btn {
-  color: #5f6368 !important;
-}
-#gcc-sidebar.gcc-theme-light .gcc-card-btn:hover {
-  background: rgba(0, 0, 0, 0.04) !important;
+#gcc-sidebar.gcc-theme-light .gcc-card-back {
+  border-color: rgba(26, 115, 232, 0.15) !important;
   color: #1a73e8 !important;
+  background: rgba(26, 115, 232, 0.04) !important;
 }
-#gcc-sidebar.gcc-theme-light .gcc-card-btn.delete:hover {
+#gcc-sidebar.gcc-theme-light .gcc-card-back:hover {
+  border-color: #1a73e8 !important;
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-del {
+  border-color: rgba(217, 48, 37, 0.15) !important;
   color: #d93025 !important;
-  background: rgba(217, 48, 37, 0.08) !important;
+  background: rgba(217, 48, 37, 0.04) !important;
+}
+#gcc-sidebar.gcc-theme-light .gcc-card-del:hover {
+  border-color: #d93025 !important;
+  background: #d93025 !important;
+  color: #ffffff !important;
 }
 
 /* 讨论对话气泡 */
