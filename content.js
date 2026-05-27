@@ -1239,8 +1239,8 @@ function formatAIText(rawText, hostElement) {
   // A. 过滤自身按钮残留文本
   let text = rawText.replace(/📌 留存步骤\s*💬 讨论步骤\s*❌ 隐藏步骤/g, '').trim();
   
-  // B. 将 -1-2 或 --16 类型的引用标记转换为高颜值胶囊 HTML
-  text = text.replace(/(?:--|-)(\d+)/g, (match, num, offset, string) => {
+  // B. 将 -1-2、--16 或 [1] 类型的引用标记转换为高颜值胶囊 HTML
+  text = text.replace(/(?:--|-|\[)(\d+)(?:\^|\])?/g, (match, num, offset, string) => {
     // 排除日期格式 (例如 2026-05-27)
     const before = string.slice(Math.max(0, offset - 4), offset);
     const after = string.slice(offset + match.length, offset + match.length + 3);
