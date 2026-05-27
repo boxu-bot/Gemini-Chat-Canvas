@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Gemini 对话画布 (Gemini Chat Canvas) - 官方 Gemini 视觉重构样式表
+   Omni Canvas (万能画布) - 官方视觉样式表
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
@@ -869,4 +869,33 @@ body.gcc-sidebar-active .chat-input-container {
 .gcc-thread-log::-webkit-scrollbar-thumb:hover,
 .gcc-input::-webkit-scrollbar-thumb:hover {
   background: #444746;
+}
+
+/* ==================== 🎫 引用文献高颜值胶囊 (Omni Citation Pills) ==================== */
+.gcc-citation-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  margin: 0 2px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #a8c7fa; /* 护眼淡蓝 */
+  background: rgba(168, 199, 250, 0.15); /* 透明淡蓝毛玻璃 */
+  border: 1px solid rgba(168, 199, 250, 0.25);
+  border-radius: 8px; /* 扁圆胶囊 */
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gcc-citation-pill:hover {
+  background: rgba(168, 199, 250, 0.3);
+  border-color: rgba(168, 199, 250, 0.5);
+  transform: scale(1.08);
+  box-shadow: 0 0 6px rgba(168, 199, 250, 0.2);
 }

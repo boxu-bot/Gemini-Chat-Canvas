@@ -1,5 +1,5 @@
 // ==========================================================================
-// Gemini 对画画布 (Gemini Chat Canvas) - 核心内容脚本
+// Omni Canvas (万能画布) - 核心内容脚本
 // ==========================================================================
 
 // 暂存架状态管理
@@ -9,87 +9,35 @@ let activeDiscussionLi = null;
 let isWaitingForDiscussionReply = false;
 let discussionTimeoutTimer = null; // 讨论响应超时监视器
 let initialRepliesCount = 0;
+let lastInitialReplyText = ""; // 记录发送瞬间最后一个回复的文本，用以智能防重置/防死锁
 let lastCapturedText = "";
 let lastChangeTime = 0;
 let hasStartedGenerating = false;
 let isScrollLocked = false;
 let lockedScrolls = [];
 
-// 1. 健壮查找 Gemini 原生输入框
-function findGeminiInput() {
-  // 匹配 contenteditable 元素 (Gemini 目前主要输入框类型)
-  let editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
-  if (editor) return editor;
-  
-  // 匹配 g-textarea 容器内部的 textarea 或 editor
-  let textarea = document.querySelector('g-textarea textarea, g-textarea div[contenteditable="true"]');
-  if (textarea) return textarea;
-  
-  // 匹配通用 textarea 元素
-  textarea = document.querySelector('textarea.textarea, textarea[placeholder*="Prompt"], textarea[placeholder*="提示"], textarea');
-  if (textarea) return textarea;
-  
-  return null;
+// ==========================================================================
+// 🛡️ 跨平台策略适配器系统 (Strategy Adapter Drivers)
+// ==========================================================================
+
+// React/Vue 受控组件底层 State 强行突破修改器
+function setFrameworkInputText(textarea, text) {
+  textarea.focus();
+  try {
+    const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+    nativeValueSetter.call(textarea, text);
+  } catch (err) {
+    textarea.value = text;
+  }
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  textarea.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-// 2. 健壮查找 Gemini 原生发送按钮
-function findGeminiSendButton() {
-  // A. 优先级最高：直接匹配带有特定标签、类名或测试ID的发送按钮
-  const selectors = [
-    'g-textarea-send-button button',
-    'button[aria-label*="Send"]',
-    'button[aria-label*="发送"]',
-    'button[aria-label*="Submit"]',
-    '.send-button',
-    'button.send-button',
-    'button[class*="send"]',
-    'button[class*="Send"]',
-    '[data-testid*="send"]',
-    '[data-testid*="Send"]'
-  ];
-  
-  for (let sel of selectors) {
-    let btn = document.querySelector(sel);
-    if (btn) return btn;
-  }
-  
-  // B. 兜底搜索：匹配输入框附近容器中的 button 元素
-  const input = findGeminiInput();
-  if (input) {
-    const parent = input.closest('form, div[class*="container"], div[class*="area"], div[class*="input"]');
-    if (parent) {
-      const buttons = parent.querySelectorAll('button');
-      if (buttons.length > 0) {
-        // 优先寻找带有 SVG 图标的按钮，或者无文本的图标按钮
-        for (let b of buttons) {
-          if (b.querySelector('svg') || b.textContent.trim() === '') {
-            return b;
-          }
-        }
-        // 兜底返回最后一个按钮
-        return buttons[buttons.length - 1];
-      }
-    }
-  }
-  return null;
-}
-
-// 3. 强力向输入框填充内容并派发事件
-function setGeminiInputText(text) {
-  const input = findGeminiInput();
-  if (!input) {
-    showToast("❌ 未找到 Gemini 原生输入框，填充失败！");
-    return false;
-  }
-  
-  input.focus();
-  
+// 统一输入数据穿透器
+function setPlatformText(input, text) {
   if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
-    input.value = text;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+    setFrameworkInputText(input, text);
   } else {
-    // 选定并清空 contenteditable 的已有文字，使用 insertHTML 模拟打字输入，完美支持多行换行，强力启用发送键
     try {
       const selection = window.getSelection();
       const range = document.createRange();
@@ -97,19 +45,14 @@ function setGeminiInputText(text) {
       selection.removeAllRanges();
       selection.addRange(range);
       document.execCommand('delete', false);
-      
-      // 将换行符 \n 替换为 <br> 以免被浏览器 insertText 引擎强行截断，实现完美多行输入
       const htmlContent = text.replace(/\n/g, '<br>');
       document.execCommand('insertHTML', false, htmlContent);
     } catch (e) {
-      // 兜底直接修改
       input.innerHTML = '';
       const p = document.createElement('p');
       p.textContent = text;
       input.appendChild(p);
     }
-    
-    // 派发事件激活前端框架监听，特别加入 InputEvent 以及 beforeinput，强力激活 Angular/React 底层状态数据绑定！
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     try {
@@ -117,30 +60,20 @@ function setGeminiInputText(text) {
       input.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: text }));
     } catch (err) {}
   }
-  
   input.focus();
-  return true;
 }
 
-// 4. 模拟点击发送按钮（采用硬件鼠标事件序列 + 键盘回车双保险强力激活）
-function clickGeminiSend() {
-  const btn = findGeminiSendButton();
-  const input = findGeminiInput();
-  
+// 模拟物理发送操作
+function triggerPhysicalSend(btn, input) {
   let success = false;
-  
-  // A. 优先尝试硬件级鼠标点击发送按钮
   if (btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true') {
     btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
     btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
     btn.click();
     success = true;
   }
-  
-  // B. 双保险：如果按钮没有被成功点击（例如处于置灰态），或者干脆未找到按钮，在输入框内部派发硬件回车事件流
   if (input) {
     input.focus();
-    
     const enterDown = new KeyboardEvent('keydown', {
       key: 'Enter',
       code: 'Enter',
@@ -150,7 +83,6 @@ function clickGeminiSend() {
       cancelable: true,
       view: window
     });
-    
     const enterUp = new KeyboardEvent('keyup', {
       key: 'Enter',
       code: 'Enter',
@@ -160,17 +92,177 @@ function clickGeminiSend() {
       cancelable: true,
       view: window
     });
-    
     input.dispatchEvent(enterDown);
     input.dispatchEvent(enterUp);
     success = true;
   }
-  
-  if (!success) {
-    showToast("❌ 未能触发发送，请手动点击发送！");
-  }
   return success;
 }
+
+// 驱动器 - Gemini 平台驱动
+const geminiDriver = {
+  id: 'gemini',
+  domains: ['gemini.google.com'],
+  selectors: {
+    chatContainer: '.chat-history, [class*="conversation-container"], [role="main"]',
+    inputBox: 'div[contenteditable="true"][role="textbox"], g-textarea textarea, g-textarea div[contenteditable="true"]',
+    sendButton: 'g-textarea-send-button button, button[aria-label*="Send"], button[aria-label*="发送"], button[aria-label*="Submit"]',
+    replyBubbles: 'message-content, .message-content, div[class*="message-content"], div[class*="reply"]'
+  },
+  setInputText: function(input, text) {
+    setPlatformText(input, text);
+  },
+  clickSend: function(btn, input) {
+    return triggerPhysicalSend(btn, input);
+  }
+};
+
+// 驱动器 - DeepSeek 平台驱动
+const deepseekDriver = {
+  id: 'deepseek',
+  domains: ['chat.deepseek.com'],
+  selectors: {
+    chatContainer: '[class*="chat-container"], [class*="message-list"], main',
+    inputBox: 'textarea#chat-input, textarea[placeholder*="Ask me anything"], textarea[placeholder*="给 DeepSeek"]',
+    sendButton: 'div[role="button"][class*="send-button"], button[class*="send"], [class*="send-btn"]',
+    replyBubbles: '.ds-markdown'
+  },
+  setInputText: function(input, text) {
+    setPlatformText(input, text);
+  },
+  clickSend: function(btn, input) {
+    return triggerPhysicalSend(btn, input);
+  }
+};
+
+// 驱动器 - 通义千问 (Qwen) 平台驱动
+const qwenDriver = {
+  id: 'qwen',
+  domains: ['tongyi.aliyun.com'],
+  selectors: {
+    chatContainer: '[class*="chat-history"], [class*="chat-container"], [class*="message-list"]',
+    inputBox: 'textarea[placeholder*="聊聊"], textarea[class*="input"], textarea',
+    sendButton: 'button[class*="sendBtn"], [class*="sendBtn"] button, button[class*="send"]',
+    replyBubbles: '[class*="qwen-message-content"], [class*="message-content"], .qwen-message-content'
+  },
+  setInputText: function(input, text) {
+    setPlatformText(input, text);
+  },
+  clickSend: function(btn, input) {
+    return triggerPhysicalSend(btn, input);
+  }
+};
+
+// 驱动注册列表
+const platformDrivers = [geminiDriver, deepseekDriver, qwenDriver];
+let currentPlatform = geminiDriver; // 默认 Gemini 兜底
+
+// 检测当前域名并加载对应驱动
+function detectPlatform() {
+  const host = window.location.hostname;
+  const driver = platformDrivers.find(p => p.domains.some(domain => host.includes(domain)));
+  if (driver) {
+    currentPlatform = driver;
+    console.log(`[Omni Canvas] Loaded platform driver: ${currentPlatform.id}`);
+  } else {
+    console.log(`[Omni Canvas] Unknown host: "${host}". Defaulting to Gemini driver.`);
+  }
+}
+
+// 1. 健壮查找原生输入框
+function findPlatformInput() {
+  const sel = currentPlatform.selectors.inputBox;
+  let input = document.querySelector(sel);
+  if (input) return input;
+  
+  // 通用兜底
+  input = document.querySelector('div[contenteditable="true"][role="textbox"]');
+  if (input) return input;
+  
+  input = document.querySelector('textarea, g-textarea textarea');
+  if (input) return input;
+  
+  return null;
+}
+
+// 2. 健壮查找原生发送按钮
+function findPlatformSendButton() {
+  const sel = currentPlatform.selectors.sendButton;
+  let btn = document.querySelector(sel);
+  if (btn) return btn;
+  
+  const fallbackSelectors = [
+    'button[aria-label*="Send"]',
+    'button[aria-label*="发送"]',
+    'button[aria-label*="Submit"]',
+    'button.send-button',
+    'button[class*="send"]',
+    'button[class*="Send"]',
+    '[class*="sendBtn"]',
+    '[data-testid*="send"]',
+    '[data-testid*="Send"]'
+  ];
+  for (let fsel of fallbackSelectors) {
+    btn = document.querySelector(fsel);
+    if (btn) return btn;
+  }
+  
+  const input = findPlatformInput();
+  if (input) {
+    const parent = input.closest('form, div[class*="container"], div[class*="area"], div[class*="input"]');
+    if (parent) {
+      const buttons = parent.querySelectorAll('button');
+      if (buttons.length > 0) {
+        for (let b of buttons) {
+          if (b.querySelector('svg') || b.textContent.trim() === '') {
+            return b;
+          }
+        }
+        return buttons[buttons.length - 1];
+      }
+    }
+  }
+  return null;
+}
+
+// 3. 强力向输入框填充内容并派发事件
+function setPlatformInputText(text) {
+  const input = findPlatformInput();
+  if (!input) {
+    showToast("❌ 未找到输入框，填充失败！");
+    return false;
+  }
+  currentPlatform.setInputText(input, text);
+  return true;
+}
+
+// 4. 模拟点击发送按钮
+function clickPlatformSend(delayMs = 0) {
+  const performClick = () => {
+    const btn = findPlatformSendButton();
+    const input = findPlatformInput();
+    const success = currentPlatform.clickSend(btn, input);
+    if (!success) {
+      showToast("❌ 未能触发发送，请手动点击发送！");
+    }
+    return success;
+  };
+
+  if (delayMs > 0) {
+    setTimeout(performClick, delayMs);
+    return true;
+  }
+  return performClick();
+}
+
+// 暴露给自动化测试环境的平台切换接口
+window.__setPlatform = (platformId) => {
+  const driver = platformDrivers.find(p => p.id === platformId);
+  if (driver) {
+    currentPlatform = driver;
+    console.log(`[Omni Canvas] Test manual platform switch: ${currentPlatform.id}`);
+  }
+};
 
 // 5. 全局 Toast 提示函数
 function showToast(message) {
@@ -221,7 +313,7 @@ function lockViewportScroll(li) {
   
   isScrollLocked = true;
   setPageScrollLock(true); // 物理强锁原生 API，杜绝一瞬间的位移
-  console.log("[Gemini Chat Canvas] Scroll locked at current view.");
+  console.log("[Omni Canvas] Scroll locked at current view.");
 }
 
 function performScrollLock() {
@@ -239,7 +331,7 @@ function unlockViewportScroll() {
   isScrollLocked = false;
   lockedScrolls = [];
   setPageScrollLock(false); // 物理释放原生 API
-  console.log("[Gemini Chat Canvas] Scroll unlocked.");
+  console.log("[Omni Canvas] Scroll unlocked.");
 }
 
 // 5.8 视口滚动弹性物理弹簧机制 (Springy Rubber-Band Scroll Simulation with Hyperbolic Tangent)
@@ -368,7 +460,7 @@ function initSidebar() {
       </defs>
     </svg>
   `;
-  toggleBtn.title = '打开 Gemini 对话画布';
+  toggleBtn.title = '打开 Omni Canvas';
   toggleBtn.addEventListener('click', toggleSidebar);
   document.body.appendChild(toggleBtn);
   
@@ -392,7 +484,7 @@ function initSidebar() {
               </linearGradient>
             </defs>
           </svg>
-          <span>Gemini 对话画布</span>
+          <span>Omni Canvas</span>
         </h3>
         <button class="gcc-close-btn" id="gcc-close-btn">✕</button>
       </div>
@@ -502,7 +594,7 @@ function initSidebar() {
     // 采用极度严密的 XML 标签 and 三引号隔离提示词，防止 Gemini 对短句/疑问句产生“聚合优化”误判
     const prompt = `【局部讨论上下文（仅作为参考背景，不要对其进行全文重组或聚合文档生成）】\n"""\n${activeDiscussionItem}\n"""\n\n【用户对上述上下文的疑问/微调指令】\n"${text}"\n\n【回答要求】\n请严格只针对用户的具体问题进行直接、精准、简明扼要 of 回答，切勿进行任何无意义的信息聚合、格式重排、长文润色或多余 of 去重整理！`;
     
-    if (setGeminiInputText(prompt)) {
+    if (setPlatformInputText(prompt)) {
       threadInput.value = '';
       adjustTextareaHeight(threadInput); // 发送后重置高度为单行
       threadInput.disabled = true; // 正在生成回复时禁用输入框，防范二次重发
@@ -524,12 +616,13 @@ function initSidebar() {
         // 创建并插入 AI 等待气泡（包含 Gemini 星星 SVG 头像，使用全局渐变 ID）
         const aiBubble = document.createElement('div');
         aiBubble.className = 'gcc-chat-bubble ai pending';
+        const displayPlatformName = currentPlatform.id === 'deepseek' ? 'DeepSeek' : (currentPlatform.id === 'qwen' ? 'Qwen' : 'Gemini');
         aiBubble.innerHTML = `
           <div class="gcc-ai-header">
             <svg class="gcc-sparkle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C12 2 12.3 8.3 15.6 11.4C18.7 14.5 22 12 22 12C22 12 15.7 12.3 12.6 15.6C9.5 18.7 12 22 12 22C12 22 11.7 15.7 8.4 12.6C5.3 9.5 2 12 2 12C2 12 8.3 11.7 11.4 8.4C14.5 5.3 12 2 12 2Z" fill="url(#gemini-logo-grad)"/>
             </svg>
-            <span>Gemini</span>
+            <span>${displayPlatformName}</span>
           </div>
           <div class="gcc-bubble-content gcc-ai-content">🤖 正在等候 AI 响应并在此处同步...</div>
         `;
@@ -539,8 +632,10 @@ function initSidebar() {
         setTimeout(() => { logEl.scrollTop = logEl.scrollHeight; }, 10);
       }
       
-      // 记录发送前的消息总数，以精确区分 Gemini 的新答复和历史旧答复
-      initialRepliesCount = document.querySelectorAll('message-content, .message-content, div[class*="message-content"], div[class*="reply"]').length;
+      // 记录发送前的消息总数和最后一个消息的内容，以精确区分新答复和历史旧答复（防死锁双保险）
+      const currentReplies = document.querySelectorAll(currentPlatform.selectors.replyBubbles);
+      initialRepliesCount = currentReplies.length;
+      lastInitialReplyText = currentReplies.length > 0 ? currentReplies[currentReplies.length - 1].textContent.trim() : "";
       
       // 重置并启动同步和文字稳定性跟踪状态
       isWaitingForDiscussionReply = true;
@@ -560,7 +655,7 @@ function initSidebar() {
       }, 60000);
       
       showToast("🚀 讨论指令已载入并自动发送！");
-      clickGeminiSend();
+      clickPlatformSend(100);
     }
   };
 
@@ -572,18 +667,19 @@ function initSidebar() {
       pendingBubble.remove();
     }
     
-    if (setGeminiInputText(promptText)) {
+    if (setPlatformInputText(promptText)) {
       // 重新插入 AI 等待气泡
       const logEl = document.getElementById('gcc-thread-log');
       if (logEl) {
         const aiBubble = document.createElement('div');
         aiBubble.className = 'gcc-chat-bubble ai pending';
+        const displayPlatformName = currentPlatform.id === 'deepseek' ? 'DeepSeek' : (currentPlatform.id === 'qwen' ? 'Qwen' : 'Gemini');
         aiBubble.innerHTML = `
           <div class="gcc-ai-header">
             <svg class="gcc-sparkle-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C12 2 12.3 8.3 15.6 11.4C18.7 14.5 22 12 22 12C22 12 15.7 12.3 12.6 15.6C9.5 18.7 12 22 12 22C12 22 11.7 15.7 8.4 12.6C5.3 9.5 2 12 2 12C2 12 8.3 11.7 11.4 8.4C14.5 5.3 12 2 12 2Z" fill="url(#gemini-logo-grad)"/>
             </svg>
-            <span>Gemini</span>
+            <span>${displayPlatformName}</span>
           </div>
           <div class="gcc-bubble-content gcc-ai-content">🤖 正在等候 AI 响应并在此处同步...</div>
         `;
@@ -597,6 +693,11 @@ function initSidebar() {
         handleDiscussionTimeout(promptText, userText);
       }, 60000);
       
+      // 记录发送前的消息总数和最后一个消息的内容，以精确区分新答复和历史旧答复（防重试死锁）
+      const currentReplies = document.querySelectorAll(currentPlatform.selectors.replyBubbles);
+      initialRepliesCount = currentReplies.length;
+      lastInitialReplyText = currentReplies.length > 0 ? currentReplies[currentReplies.length - 1].textContent.trim() : "";
+      
       isWaitingForDiscussionReply = true;
       hasStartedGenerating = false;
       lastCapturedText = "";
@@ -608,7 +709,7 @@ function initSidebar() {
       }
       
       showToast("🔄 正在重新投喂尝试连接...");
-      clickGeminiSend();
+      clickPlatformSend(100);
     }
   };
 
@@ -951,7 +1052,7 @@ function clearShelf() {
 // 功能 4：信息回流 (🔄 发送给AI 按钮功能)
 function sendBackToAI(content) {
   const text = `【上下文参考】投喂之前留存的信息：\n"${content}"`;
-  if (setGeminiInputText(text)) {
+  if (setPlatformInputText(text)) {
     showToast("🔄 留存片段已成功投喂至输入框！");
   }
 }
@@ -1046,9 +1147,9 @@ function optimizeAggregated() {
   
   const prompt = `请将以下我筛选出的碎片信息进行完整的聚合、去重、逻辑梳理和语言优化，为我生成一篇结构严谨、质量极高的最终整合文档。以下是素材：\n${materialText}`;
   
-  if (setGeminiInputText(prompt)) {
+  if (setPlatformInputText(prompt)) {
     showToast("✨ 聚合指令已装载并自动发送！");
-    clickGeminiSend();
+    clickPlatformSend(100);
     
     // 平滑滚动视口到底部观察响应
     setTimeout(() => {
@@ -1060,15 +1161,102 @@ function optimizeAggregated() {
   }
 }
 
+// 7.8 格式化 AI 文本，将平台特有的引用标记转换为高颜值的 HTML 引用胶囊
+function formatAIText(rawText) {
+  if (!rawText) return "";
+  
+  // A. 过滤自身按钮残留文本
+  let text = rawText.replace(/📌 留存步骤\s*💬 讨论步骤\s*❌ 隐藏步骤/g, '').trim();
+  
+  // B. 将 -1-2 或 --16 类型的引用标记转换为高颜值胶囊 HTML
+  text = text.replace(/(?:--|-)(\d+)/g, (match, num, offset, string) => {
+    // 排除日期格式 (例如 2026-05-27)
+    const before = string.slice(Math.max(0, offset - 4), offset);
+    const after = string.slice(offset + match.length, offset + match.length + 3);
+    if (/^\d{4}$/.test(before) || /^-\d{2}/.test(after)) {
+      return match;
+    }
+    
+    // 排除负数或数学公式 (例如 " -5" 或 " = -10")
+    const charBefore = string.charAt(offset - 1);
+    if (charBefore === ' ' || charBefore === '=' || charBefore === '<' || charBefore === '>') {
+      if (/^\d+(?:\s*%|\s*px|\s*em|\s*rem|\s*$|\s*[\+\-\*\/])/.test(string.slice(offset + match.length))) {
+        return match;
+      }
+    }
+    
+    // 渲染高颜值引用胶囊
+    return `<span class="gcc-citation-pill" title="查看引用 [${num}]">${num}</span>`;
+  });
+  
+  // C. 将换行符转为 HTML 换行
+  return text.replace(/\n/g, '<br>');
+}
+
+// 7.9 智能检测当前大模型宿主平台是否处于生成/思考活跃状态
+function checkIsPlatformGenerating() {
+  // A. 查找是否存在停止按钮 (通常包含 stop 或 停止 关键字)
+  const stopBtn = document.querySelector([
+    'button[class*="stop"]',
+    'div[class*="stop"]',
+    '[class*="stop-btn"]',
+    '[class*="stopButton"]',
+    'button[aria-label*="Stop"]',
+    'button[aria-label*="停止"]',
+    'button[aria-label*="Cancel"]',
+    'button[aria-label*="取消"]'
+  ].join(','));
+  
+  if (stopBtn && window.getComputedStyle(stopBtn).display !== 'none') {
+    return true;
+  }
+  
+  // B. 查找当前平台的发送按钮，如果发送按钮处于禁用状态，也通常意味着正在生成中
+  const sendBtn = findPlatformSendButton();
+  if (sendBtn) {
+    if (sendBtn.disabled || sendBtn.getAttribute('aria-disabled') === 'true' || sendBtn.classList.contains('disabled')) {
+      return true;
+    }
+  }
+  
+  // C. 检查页面中是否存在流式动画/正在输入状态元素 (例如 Gemini 的闪烁，或 DeepSeek 的正在生成/思考中元素)
+  const loadingIndicator = document.querySelector([
+    '.interactive-glimmer',
+    '.ds-loading',
+    '.qwen-loading',
+    '[class*="loading-indicator"]',
+    '[class*="generating"]',
+    '.ant-spin'
+  ].join(','));
+  
+  if (loadingIndicator) {
+    return true;
+  }
+  
+  return false;
+}
+
 // 8. 实时同步 AI 回复文字到侧边栏局部讨论区 (双保险同步器)
 function trackDynamicReply() {
   if (!isWaitingForDiscussionReply) return;
   
   // 寻找到页面中所有的回复内容容器
-  const replies = document.querySelectorAll('message-content, .message-content, div[class*="message-content"], div[class*="reply"]');
+  const replies = document.querySelectorAll(currentPlatform.selectors.replyBubbles);
   
-  // 如果页面上的回复数量还没有增加，说明 AI 的新回复容器还没生成，继续等待，绝不提前抓取历史旧数据！
-  if (replies.length <= initialRepliesCount) {
+  // 智能区分新答复与历史旧答复（支持：1. 新增节点 2. 原节点原地重新生成/覆盖）
+  let isNewReply = false;
+  if (replies.length > initialRepliesCount) {
+    isNewReply = true;
+  } else if (replies.length === initialRepliesCount && replies.length > 0) {
+    const latestReply = replies[replies.length - 1];
+    const currentText = latestReply.textContent.trim();
+    if (currentText !== lastInitialReplyText) {
+      isNewReply = true;
+    }
+  }
+  
+  // 如果页面上的回复尚未更新，则继续等待
+  if (!isNewReply) {
     return;
   }
   
@@ -1091,13 +1279,13 @@ function trackDynamicReply() {
     if (discussionTimeoutTimer) {
       clearTimeout(discussionTimeoutTimer);
       discussionTimeoutTimer = null;
-      console.log("[Gemini Chat Canvas] Generation started. Timeout timer cleared.");
+      console.log("[Omni Canvas] Generation started. Timeout timer cleared.");
     }
   }
   
   const pendingContent = document.querySelector('.gcc-chat-bubble.ai.pending .gcc-ai-content');
   if (pendingContent) {
-    pendingContent.innerHTML = rawText.replace(/\n/g, '<br>');
+    pendingContent.innerHTML = formatAIText(rawText);
     
     // 自动滚下日志区以保持显示最新的一句回答 (智能滚动锁定)
     const logEl = document.getElementById('gcc-thread-log');
@@ -1112,12 +1300,17 @@ function trackDynamicReply() {
   // 实时执行视口滚动锁定以压制主站的自动下滚行为
   performScrollLock();
   
-  // 文字稳定性监控：如果内容变化，更新时间戳；如果超过 3.5 秒内容不变，则视为输出完毕，切断同步通道并去除 pending 标记
+  // 文字稳定性监控与智能响应：如果内容变化，更新时间戳；
+  // 如果内容不变，且平台仍处于生成/思考活跃状态（例如 DeepSeek 深度思考中或网络严重延迟），允许长达 15s 停顿；
+  // 如果内容不变，且平台已处于非生成状态，4s 无变化即判定输出完毕，切断同步通道。
   if (rawText !== lastCapturedText) {
     lastCapturedText = rawText;
     lastChangeTime = Date.now();
   } else {
-    if (Date.now() - lastChangeTime > 3500) {
+    const isPlatformGenerating = checkIsPlatformGenerating();
+    const allowedIdleTime = isPlatformGenerating ? 15000 : 4000;
+    
+    if (Date.now() - lastChangeTime > allowedIdleTime) {
       isWaitingForDiscussionReply = false;
       unlockViewportScroll(); // 接收完毕，释放滚动锁定
       
@@ -1145,7 +1338,7 @@ function trackDynamicReply() {
       }
       
       showToast("✅ AI 回复接收完毕");
-      console.log("[Gemini Chat Canvas] Synchronization stopped: reply output finalized.");
+      console.log("[Omni Canvas] Synchronization stopped: reply output finalized.");
     }
   }
 }
@@ -1164,6 +1357,9 @@ function isPluginMutation(target) {
 
 // 10. 开启 DOM 实时 MutationObserver 监测与同步
 function startObserver() {
+  // 检测当前域名并加载对应驱动
+  detectPlatform();
+  
   // 初始化侧边栏和 Toast 节点
   initSidebar();
   

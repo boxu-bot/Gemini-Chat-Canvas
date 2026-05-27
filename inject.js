@@ -15,7 +15,7 @@
   // B. 重写 Element 原型滚动方法
   Element.prototype.scrollIntoView = function(...args) {
     if (isScrollLocked()) {
-      console.log("[Gemini Chat Canvas] Blocked scrollIntoView via DOM attribute lock.");
+      console.log("[Omni Canvas] Blocked scrollIntoView via DOM attribute lock.");
       return;
     }
     return originalScrollIntoView.apply(this, args);
@@ -67,5 +67,5 @@
     });
   }
   
-  console.log("[Gemini Chat Canvas] MAIN world scroll hijacker successfully loaded.");
+  console.log("[Omni Canvas] MAIN world scroll hijacker successfully loaded.");
 })();
